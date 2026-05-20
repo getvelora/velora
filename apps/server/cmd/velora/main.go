@@ -14,6 +14,7 @@ import (
 	"github.com/mdelle/velora/apps/server/internal/health"
 	"github.com/mdelle/velora/apps/server/internal/migrations"
 	"github.com/mdelle/velora/apps/server/internal/storage"
+	"github.com/mdelle/velora/apps/server/internal/web"
 )
 
 func main() {
@@ -46,7 +47,7 @@ func main() {
 		defer cancel()
 		return db.PingContext(pingCtx)
 	}))
-	mux.Handle("/", http.FileServer(http.Dir(env.OrDefault("WEB_DIST_DIR", "/app/web"))))
+	mux.Handle("/", web.NewSPAHandler(env.OrDefault("WEB_DIST_DIR", "/app/web")))
 
 	addr := ":" + env.OrDefault("PORT", "8080")
 	log.Printf("velora server listening on %s", addr)

@@ -185,7 +185,7 @@ Implemented:
 - Optional Postgres service.
 - `/api/health` endpoint reports overall status and the active DB driver.
 - Goose database migrations applied at startup, with per-dialect embedded SQL.
-- React web shell served by the Velora image.
+- React web shell served by the Velora image, with SPA deep-link routing.
 - FFmpeg installed in the runtime image.
 
 Next planned milestone:
