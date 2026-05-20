@@ -19,14 +19,15 @@ func NewHandler(checkDatabase CheckFunc) http.Handler {
 			Database: "ok",
 		}
 
+		status := http.StatusOK
 		if err := checkDatabase(); err != nil {
 			response.Status = "degraded"
 			response.Database = "error"
-			w.WriteHeader(http.StatusServiceUnavailable)
+			status = http.StatusServiceUnavailable
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
 		_ = json.NewEncoder(w).Encode(response)
 	})
 }
-
