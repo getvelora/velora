@@ -12,6 +12,7 @@ import (
 	"github.com/mdelle/velora/apps/server/internal/database"
 	"github.com/mdelle/velora/apps/server/internal/env"
 	"github.com/mdelle/velora/apps/server/internal/health"
+	"github.com/mdelle/velora/apps/server/internal/libraries"
 	"github.com/mdelle/velora/apps/server/internal/migrations"
 	"github.com/mdelle/velora/apps/server/internal/storage"
 	"github.com/mdelle/velora/apps/server/internal/web"
@@ -41,12 +42,15 @@ func main() {
 		log.Fatalf("apply migrations: %v", err)
 	}
 
+	libraryStore := libraries.NewRepository(db, databaseConfig.Driver)
+
 	mux := http.NewServeMux()
 	mux.Handle("/api/health", health.NewHandler(databaseConfig.Driver, func() error {
 		pingCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		return db.PingContext(pingCtx)
 	}))
+	mux.Handle("/api/libraries", libraries.NewHandler(libraryStore))
 	mux.Handle("/", web.NewSPAHandler(env.OrDefault("WEB_DIST_DIR", "/app/web")))
 
 	addr := ":" + env.OrDefault("PORT", "8080")

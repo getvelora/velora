@@ -184,12 +184,14 @@ Implemented:
 - SQLite default database under `/config`.
 - Optional Postgres service.
 - `/api/health` endpoint reports overall status and the active DB driver.
+- `/api/libraries` endpoint lists and creates configured media roots.
+- `libraries` table with per-dialect Goose migrations.
 - Goose database migrations applied at startup, with per-dialect embedded SQL.
 - React web shell served by the Velora image, with SPA deep-link routing.
 - FFmpeg installed in the runtime image.
 
 Next planned milestone:
 
-- Add a `libraries` table.
-- Add `/api/libraries`.
 - Begin scanning files from `/media`.
+- Expand `/api/libraries` to GET-by-id / PUT / DELETE.
+- Introduce `media_files` and the scanner pipeline.
