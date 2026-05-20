@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMMIT_HELPER="${VELORA_COMMIT_HELPER:-$ROOT_DIR/.velora/commit}"
+
+usage() {
+  cat <<'USAGE'
+Usage: ./velora <command> [options]
+
+Commands:
+  create [--postgres]  Build and start the local environment
+  destroy              Stop the local environment and preserve volumes
+  clean                Stop the local environment and remove compose volumes
+  status               Show local environment status
+  logs                 Follow local environment logs
+  commit               Commit staged changes with a Conventional Commit message
+USAGE
+}
+
+run_compose() {
+  (cd "$ROOT_DIR" && docker compose "$@")
+}
+
+create_env() {
+  load_env_file
+  local compose_args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --postgres)
+        use_local_postgres
+        compose_args+=(--profile postgres)
+        ;;
+      *)
+        echo "Unknown create option: $1" >&2
+        exit 1
+        ;;
+    esac
+    shift
+  done
+
+  mkdir -p \
+    "$ROOT_DIR/${VELORA_HOST_MEDIA_DIR:-./dev/media}" \
+    "$ROOT_DIR/${VELORA_HOST_CACHE_DIR:-./dev/cache}" \
+    "$ROOT_DIR/${VELORA_HOST_CONFIG_DIR:-./dev/config}"
+  run_compose "${compose_args[@]}" up -d --build --remove-orphans
+}
+
+use_local_postgres() {
+  export VELORA_DATABASE_DRIVER=postgres
+  export VELORA_DATABASE_URL="postgres://${POSTGRES_USER:-velora}:${POSTGRES_PASSWORD:-velora}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_DB:-velora}?sslmode=disable"
+}
+
+load_env_file() {
+  local env_file="$ROOT_DIR/.env"
+  if [[ -f "$env_file" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$env_file"
+    set +a
+  fi
+}
+
+destroy_env() {
+  run_compose down --remove-orphans
+}
+
+clean_env() {
+  run_compose down --volumes --remove-orphans
+}
+
+status_env() {
+  run_compose ps
+}
+
+logs_env() {
+  run_compose logs -f
+}
+
+commit_staged_changes() {
+  if [[ ! -x "$COMMIT_HELPER" ]]; then
+    echo "Commit helper is missing or not executable: $COMMIT_HELPER" >&2
+    exit 1
+  fi
+
+  "$COMMIT_HELPER" "$ROOT_DIR"
+}
+
+main() {
+  local command="${1:-}"
+
+  case "$command" in
+    create)
+      shift || true
+      create_env "$@"
+      ;;
+    destroy)
+      destroy_env
+      ;;
+    clean)
+      clean_env
+      ;;
+    status)
+      status_env
+      ;;
+    logs)
+      logs_env
+      ;;
+    commit)
+      commit_staged_changes
+      ;;
+    -h|--help|help|"")
+      usage
+      ;;
+    *)
+      echo "Unknown command: $command" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

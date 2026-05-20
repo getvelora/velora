@@ -1,0 +1,18 @@
+# IDE
+.idea/
+*.iml
+
+.DS_Store
+.env
+.cache/
+dist/
+node_modules/
+
+apps/server/.cache/
+apps/server/velora
+apps/web/dist/
+apps/web/node_modules/
+
+dev/cache/*
+dev/config/*
+dev/media/*

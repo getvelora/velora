@@ -1,0 +1,12 @@
+.git
+.idea
+*.iml
+
+**/.DS_Store
+**/.cache
+**/node_modules
+**/dist
+
+dev/cache/*
+dev/config/*
+dev/media/*

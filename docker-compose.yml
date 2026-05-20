@@ -1,0 +1,40 @@
+services:
+  velora:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      PORT: "8080"
+      WEB_DIST_DIR: /app/web
+      VELORA_CONFIG_DIR: ${VELORA_CONFIG_DIR:-/config}
+      VELORA_CACHE_DIR: ${VELORA_CACHE_DIR:-/cache}
+      VELORA_MEDIA_DIR: ${VELORA_MEDIA_DIR:-/media}
+      VELORA_DATABASE_DRIVER: ${VELORA_DATABASE_DRIVER:-sqlite}
+      VELORA_DATABASE_URL: ${VELORA_DATABASE_URL:-/config/velora.db}
+    ports:
+      - "${VELORA_HTTP_PORT:-8080}:8080"
+    volumes:
+      - ${VELORA_HOST_MEDIA_DIR:-./dev/media}:${VELORA_MEDIA_DIR:-/media}
+      - ${VELORA_HOST_CACHE_DIR:-./dev/cache}:${VELORA_CACHE_DIR:-/cache}
+      - ${VELORA_HOST_CONFIG_DIR:-./dev/config}:${VELORA_CONFIG_DIR:-/config}
+
+  postgres:
+    image: postgres:18-alpine
+    profiles:
+      - postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-velora}
+      POSTGRES_USER: ${POSTGRES_USER:-velora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-velora}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-18-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U velora -d velora"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-18-data:
