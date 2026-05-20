@@ -6,7 +6,16 @@ import './styles.css';
 type HealthResponse = {
   status: string;
   database: string;
+  databaseDriver: string;
 };
+
+const DRIVER_LABELS: Record<string, string> = {
+  sqlite: 'SQLite',
+  postgres: 'Postgres',
+};
+
+const databaseLabel = (driver: string | undefined) =>
+  (driver && DRIVER_LABELS[driver]) ?? 'Database';
 
 function App() {
   const [health, setHealth] = React.useState<HealthResponse | null>(null);
@@ -78,7 +87,7 @@ function App() {
           </article>
           <article className="summary-tile">
             <Database size={22} />
-            <span>Postgres</span>
+            <span>{databaseLabel(health?.databaseDriver)}</span>
             <strong>{health?.database ?? (error ? 'Unavailable' : 'Checking')}</strong>
           </article>
           <article className="summary-tile">

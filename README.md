@@ -69,9 +69,12 @@ Expected response:
 ```json
 {
   "status": "ok",
-  "database": "ok"
+  "database": "ok",
+  "databaseDriver": "sqlite"
 }
 ```
+
+`status` is `ok` when the database ping succeeds and `degraded` (with HTTP 503) when it fails. `databaseDriver` reflects `VELORA_DATABASE_DRIVER` — `sqlite` or `postgres`.
 
 Stop the stack:
 

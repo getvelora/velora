@@ -20,7 +20,8 @@ func main() {
 		log.Fatalf("create runtime directories: %v", err)
 	}
 
-	db, err := database.Open(database.ConfigFromEnv())
+	databaseConfig := database.ConfigFromEnv()
+	db, err := database.Open(databaseConfig)
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
@@ -31,7 +32,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/api/health", health.NewHandler(func() error {
+	mux.Handle("/api/health", health.NewHandler(databaseConfig.Driver, func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		return db.PingContext(ctx)

@@ -11,7 +11,7 @@ import (
 func TestHandlerReturnsOKWhenDatabaseCheckPasses(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler(func() error {
+	handler := NewHandler("sqlite", func() error {
 		return nil
 	})
 
@@ -36,12 +36,16 @@ func TestHandlerReturnsOKWhenDatabaseCheckPasses(t *testing.T) {
 	if body.Database != "ok" {
 		t.Fatalf("expected database ok, got %q", body.Database)
 	}
+
+	if body.DatabaseDriver != "sqlite" {
+		t.Fatalf("expected database driver sqlite, got %q", body.DatabaseDriver)
+	}
 }
 
 func TestHandlerReturnsDegradedWhenDatabaseCheckFails(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler(func() error {
+	handler := NewHandler("postgres", func() error {
 		return errors.New("ping failed")
 	})
 
@@ -69,5 +73,9 @@ func TestHandlerReturnsDegradedWhenDatabaseCheckFails(t *testing.T) {
 
 	if body.Database != "error" {
 		t.Fatalf("expected database error, got %q", body.Database)
+	}
+
+	if body.DatabaseDriver != "postgres" {
+		t.Fatalf("expected database driver postgres, got %q", body.DatabaseDriver)
 	}
 }

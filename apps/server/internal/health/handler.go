@@ -8,15 +8,17 @@ import (
 type CheckFunc func() error
 
 type Response struct {
-	Status   string `json:"status"`
-	Database string `json:"database"`
+	Status         string `json:"status"`
+	Database       string `json:"database"`
+	DatabaseDriver string `json:"databaseDriver"`
 }
 
-func NewHandler(checkDatabase CheckFunc) http.Handler {
+func NewHandler(databaseDriver string, checkDatabase CheckFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := Response{
-			Status:   "ok",
-			Database: "ok",
+			Status:         "ok",
+			Database:       "ok",
+			DatabaseDriver: databaseDriver,
 		}
 
 		status := http.StatusOK
