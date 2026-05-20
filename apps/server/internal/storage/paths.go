@@ -1,6 +1,10 @@
 package storage
 
-import "os"
+import (
+	"os"
+
+	"github.com/mdelle/velora/apps/server/internal/env"
+)
 
 type RuntimePaths struct {
 	Config string
@@ -10,9 +14,9 @@ type RuntimePaths struct {
 
 func RuntimePathsFromEnv() RuntimePaths {
 	return RuntimePaths{
-		Config: envOrDefault("VELORA_CONFIG_DIR", "/config"),
-		Cache:  envOrDefault("VELORA_CACHE_DIR", "/cache"),
-		Media:  envOrDefault("VELORA_MEDIA_DIR", "/media"),
+		Config: env.OrDefault("VELORA_CONFIG_DIR", "/config"),
+		Cache:  env.OrDefault("VELORA_CACHE_DIR", "/cache"),
+		Media:  env.OrDefault("VELORA_MEDIA_DIR", "/media"),
 	}
 }
 
@@ -25,12 +29,3 @@ func EnsureRuntimeDirectories(paths RuntimePaths) error {
 
 	return nil
 }
-
-func envOrDefault(key string, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	return value
-}
-

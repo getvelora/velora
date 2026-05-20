@@ -4,10 +4,10 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/mdelle/velora/apps/server/internal/database"
+	"github.com/mdelle/velora/apps/server/internal/env"
 	"github.com/mdelle/velora/apps/server/internal/health"
 	"github.com/mdelle/velora/apps/server/internal/storage"
 )
@@ -37,21 +37,13 @@ func main() {
 		defer cancel()
 		return db.PingContext(ctx)
 	}))
-	mux.Handle("/", http.FileServer(http.Dir(envOrDefault("WEB_DIST_DIR", "/app/web"))))
+	mux.Handle("/", http.FileServer(http.Dir(env.OrDefault("WEB_DIST_DIR", "/app/web"))))
 
-	addr := ":" + envOrDefault("PORT", "8080")
+	addr := ":" + env.OrDefault("PORT", "8080")
 	log.Printf("velora server listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("serve: %v", err)
 	}
-}
-
-func envOrDefault(key string, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	return value
 }
 
 func waitForDatabase(ctx context.Context, ping func(context.Context) error) error {
