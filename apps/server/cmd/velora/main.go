@@ -12,6 +12,7 @@ import (
 	"github.com/mdelle/velora/apps/server/internal/database"
 	"github.com/mdelle/velora/apps/server/internal/env"
 	"github.com/mdelle/velora/apps/server/internal/health"
+	"github.com/mdelle/velora/apps/server/internal/migrations"
 	"github.com/mdelle/velora/apps/server/internal/storage"
 )
 
@@ -33,6 +34,10 @@ func main() {
 
 	if err := waitForDatabase(ctx, db.PingContext); err != nil {
 		log.Fatalf("ping database: %v", err)
+	}
+
+	if err := migrations.Run(ctx, db, databaseConfig.Driver); err != nil {
+		log.Fatalf("apply migrations: %v", err)
 	}
 
 	mux := http.NewServeMux()

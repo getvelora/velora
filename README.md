@@ -22,6 +22,7 @@ available as an advanced deployment option.
 
 - Go server using the standard library HTTP router.
 - SQLite by default, with optional external Postgres.
+- Goose for database migrations.
 - React, Vite, and TypeScript for the web client.
 - FFmpeg in the server image for media inspection and future streaming work.
 - Docker Compose for local development.
@@ -182,13 +183,13 @@ Implemented:
 - Dockerized Go server.
 - SQLite default database under `/config`.
 - Optional Postgres service.
-- `/api/health` endpoint.
+- `/api/health` endpoint reports overall status and the active DB driver.
+- Goose database migrations applied at startup, with per-dialect embedded SQL.
 - React web shell served by the Velora image.
 - FFmpeg installed in the runtime image.
 
 Next planned milestone:
 
-- Add database migrations.
 - Add a `libraries` table.
 - Add `/api/libraries`.
 - Begin scanning files from `/media`.
