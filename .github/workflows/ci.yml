@@ -47,7 +47,7 @@ jobs:
         with:
           go-version-file: apps/server/go.mod
           cache-dependency-path: apps/server/go.sum
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           working-directory: apps/server
