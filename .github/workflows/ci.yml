@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+  contents: read
+
 jobs:
   server:
     name: Server (Go)
@@ -23,9 +26,31 @@ jobs:
         with:
           go-version-file: apps/server/go.mod
           cache-dependency-path: apps/server/go.sum
-      - run: go build ./...
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
       - run: go vet ./...
+      - run: go build ./...
       - run: go test -race ./...
+
+  lint-go:
+    name: Lint (golangci-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/server/go.mod
+          cache-dependency-path: apps/server/go.sum
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: apps/server
 
   web:
     name: Web (Vite)
@@ -42,3 +67,39 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image (smoke test, no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: velora:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run container and probe /api/health
+        run: |
+          docker run -d --rm --name velora-ci -p 8080:8080 \
+            -v "$(mktemp -d):/config" \
+            -v "$(mktemp -d):/cache" \
+            -v "$(mktemp -d):/media" \
+            velora:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/api/health >/dev/null; then
+              echo "health ok"
+              docker stop velora-ci
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "container did not become healthy"
+          docker logs velora-ci || true
+          docker stop velora-ci || true
+          exit 1

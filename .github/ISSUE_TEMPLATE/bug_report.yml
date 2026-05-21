@@ -1,0 +1,88 @@
+name: Bug report
+description: Something is broken or behaving incorrectly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in as much of the form as you can — the more concrete the report, the faster we can fix it.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences describing the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, ordered steps. Include exact commands or curl invocations where possible.
+      placeholder: |
+        1. ./velora create
+        2. curl http://localhost:8080/api/...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include error messages and relevant log excerpts. Use code blocks.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Velora version or commit
+      description: Container tag, release version, or commit SHA.
+      placeholder: "v0.1.0 or 2ac14af"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: database
+    attributes:
+      label: Database driver
+      options:
+        - SQLite (default)
+        - Postgres
+        - Not relevant
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Host OS and architecture
+      placeholder: "macOS 15 arm64 / Ubuntu 24.04 amd64 / Raspberry Pi OS arm64"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Output of `./velora logs` around the time of the issue.
+      render: shell
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and discussions and did not find a duplicate.
+          required: true
+        - label: I am not reporting a security vulnerability (those go to the Security advisory form).
+          required: true
