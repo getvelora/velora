@@ -39,6 +39,8 @@ The `./velora` wrapper covers the common lifecycle commands:
 ./velora commit                # commit staged changes with a generated Conventional Commit message
 ```
 
+For step-by-step setup, deeper config patterns, and troubleshooting, see [`docs/`](docs/).
+
 ## HTTP API
 
 ### `GET /api/health`
