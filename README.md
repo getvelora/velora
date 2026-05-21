@@ -1,268 +1,159 @@
 # Velora
 
-Velora is an open-source, local-first media server and web client focused on simple deployment, efficient playback, and
-persistent media caching. It is being built for container-based environments, with Apple-device browser playback as the
-first client target.
+Velora is a local-first media server with a bundled React web client. The Go server, FFmpeg, and the built web assets
+ship as a single container; Apple-device browser playback is the first client target.
 
-The project is early. The current slice boots a Dockerized Go server, serves the bundled React web client, uses SQLite
-by default, and includes FFmpeg in the runtime image for future media probing and transcoding work. External Postgres is
-available as an advanced deployment option.
+The project is pre-release. SQLite is the default, Postgres is opt-in, and the server currently exposes `/api/health`
+and `/api/libraries`. Media scanning is the next milestone.
 
 ## Goals
 
-- Run locally with Docker Compose and later in any container environment with the same container paths.
-- Keep durable server state under `/config` so containers can be recreated without data loss.
-- Prefer direct play whenever the client can handle the original media.
-- Support hardware-aware transcoding through FFmpeg.
-- Keep derived media artifacts in a persistent cache.
-- Use a focused web client before native platform clients.
-- Stay focused, lightweight, and operationally simple.
+- One-container deploy that works the same locally (Docker Compose) and on real hosts (Unraid, etc.).
+- Container paths (`/config`, `/cache`, `/media`) as the only contract; host paths are a compose concern.
+- Direct play whenever the client can handle the original media; FFmpeg-driven transcoding otherwise.
+- Lightweight, opinionated, easy to read.
 
 ## Stack
 
-- Go server using the standard library HTTP router.
-- SQLite by default, with optional external Postgres.
-- Goose for database migrations, embedded into the binary per dialect and applied on startup.
-- React, Vite, and TypeScript for the web client, with SPA deep-link routing falling back to `index.html`.
-- FFmpeg in the server image for media inspection and future streaming work.
-- Docker Compose for local development.
-- GitHub Actions CI builds and tests both apps on push and pull request.
+- Go (stdlib HTTP), `database/sql` over `modernc.org/sqlite` (default) or `pgx/v5` (Postgres).
+- Goose migrations, embedded per dialect, applied on startup.
+- React + Vite + TypeScript, served by the Go binary with SPA deep-link routing.
+- FFmpeg in the runtime image. Docker Compose for local dev. GitHub Actions for CI.
 
-## Local Development
-
-Use the root helper for common project tasks:
+## Quick start
 
 ```bash
-./velora help              # list available commands
-./velora create            # build the image and start the SQLite stack on http://localhost:8080
-./velora create --postgres # same but with the bundled Postgres compose profile
-./velora status            # docker compose ps
-./velora logs              # follow container logs
-./velora destroy           # stop containers, KEEP named volumes and host bind mounts
-./velora clean              # stop containers, DROP compose-managed volumes (SQLite db is lost)
-./velora commit            # commit staged changes with a Conventional Commit message
+cp .env.example .env       # defaults work for the SQLite stack
+./velora create            # build the image and bring the stack up on :8080
+curl http://localhost:8080/api/health
 ```
 
-First-time setup:
+The `./velora` wrapper covers the common lifecycle commands:
 
 ```bash
-cp .env.example .env       # defaults work for the SQLite stack; no edits required
-./velora create
+./velora create [--postgres]   # build + up; --postgres enables the bundled Postgres profile
+./velora destroy               # stop containers, keep volumes and host bind mounts
+./velora clean                 # stop containers, drop compose-managed volumes (SQLite db is lost)
+./velora status                # docker compose ps
+./velora logs                  # follow container logs
+./velora commit                # commit staged changes with a generated Conventional Commit message
 ```
 
-Open the web client at <http://localhost:8080>.
+## HTTP API
 
-### Web client dev server
+### `GET /api/health`
 
-For tight web iteration without rebuilding the container, run Vite directly while the stack is up:
+```bash
+curl http://localhost:8080/api/health
+# {"status":"ok","database":"ok","databaseDriver":"sqlite"}
+```
+
+`status` is `degraded` (HTTP 503) when the database ping fails. `databaseDriver` echoes `VELORA_DATABASE_DRIVER`.
+
+### `GET /api/libraries`
+
+Lists configured media roots, ordered by insertion:
+
+```bash
+curl http://localhost:8080/api/libraries
+# [{"id":1,"name":"Movies","path":"/media/movies","createdAt":"...","updatedAt":"..."}]
+```
+
+### `POST /api/libraries`
+
+Creates a library. `name` and `path` are required; `path` must be unique and must use the container path.
+
+```bash
+curl -X POST http://localhost:8080/api/libraries \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Movies","path":"/media/movies"}'
+# 201 with the created library
+```
+
+Returns `400` for missing fields, `409` if the path is already configured.
+
+## Local development
+
+Server tests — the repo carries checked-in build/mod caches, so point both vars at them:
+
+```bash
+cd apps/server
+GOCACHE=$PWD/.cache/go-build GOMODCACHE=$PWD/.cache/go-mod go test -race ./...
+# Single package:
+GOCACHE=$PWD/.cache/go-build GOMODCACHE=$PWD/.cache/go-mod go test ./internal/libraries -v
+```
+
+Web client live-reload (the container must be up so the proxy has a target):
 
 ```bash
 cd apps/web
 npm run dev                # vite on :5173, /api proxies to the running container on :8080
 ```
 
-## HTTP API
+For a production-shape build of the web client: `npm run build` (`tsc` + `vite build`).
 
-Two endpoints are live today.
+## Configuration
 
-### `GET /api/health`
+The app reads and writes three container mount points. **Use the container paths in code and API payloads, not the
+`dev/*` host paths** — that contract lets the same binary move from local Docker to any other host by remapping mounts.
 
-```bash
-curl http://localhost:8080/api/health
-```
+| Container path | Purpose                                                          |
+|----------------|------------------------------------------------------------------|
+| `/config`      | Durable runtime config (SQLite db at `/config/velora.db`)        |
+| `/cache`       | Rebuildable derived artifacts (transcodes, thumbnails)           |
+| `/media`       | Source media (treat as user-owned input)                         |
 
-```json
-{
-  "status": "ok",
-  "database": "ok",
-  "databaseDriver": "sqlite"
-}
-```
+Environment variables (container side; defaults shown):
 
-`status` is `ok` when the database ping succeeds and `degraded` (with HTTP 503) when it fails. `databaseDriver` reflects
-`VELORA_DATABASE_DRIVER` — `sqlite` or `postgres`.
+| Variable                 | Default             | Notes                                                |
+|--------------------------|---------------------|------------------------------------------------------|
+| `PORT`                   | `8080`              | HTTP listen port                                     |
+| `WEB_DIST_DIR`           | `/app/web`          | Built web assets the Go server serves                |
+| `VELORA_CONFIG_DIR`      | `/config`           | Override the durable-state mount point               |
+| `VELORA_CACHE_DIR`       | `/cache`            | Override the cache mount point                       |
+| `VELORA_MEDIA_DIR`       | `/media`            | Override the source-media mount point                |
+| `VELORA_DATABASE_DRIVER` | `sqlite`            | `sqlite` or `postgres`                               |
+| `VELORA_DATABASE_URL`    | `/config/velora.db` | SQLite file path or Postgres DSN                     |
 
-### `GET /api/libraries`
+Host-side overrides (where bind mounts come from on your machine): `VELORA_HOST_CONFIG_DIR`, `VELORA_HOST_CACHE_DIR`,
+`VELORA_HOST_MEDIA_DIR`, `VELORA_HTTP_PORT`. Defaults map to `./dev/*` and `:8080`.
 
-Returns the configured media roots, ordered by insertion:
+To use an external Postgres, set `VELORA_DATABASE_DRIVER=postgres` and `VELORA_DATABASE_URL=postgres://…` in `.env`,
+then `./velora create` (no `--postgres` needed; that flag is only for the bundled compose service).
 
-```bash
-curl http://localhost:8080/api/libraries
-```
-
-```json
-[
-  {
-    "id": 1,
-    "name": "Movies",
-    "path": "/media/movies",
-    "createdAt": "2026-05-20T18:23:01.123456789Z",
-    "updatedAt": "2026-05-20T18:23:01.123456789Z"
-  }
-]
-```
-
-### `POST /api/libraries`
-
-Create a library. `name` and `path` are required; the path must be unique and must use the container path (`/media/...`), not the host path.
-
-```bash
-curl -X POST http://localhost:8080/api/libraries \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Movies","path":"/media/movies"}'
-```
-
-Returns `201` with the created library. `409 Conflict` if the path is already configured; `400 Bad Request` for missing
-fields or invalid JSON.
-
-## Local Mounts
-
-Docker Compose maps these development folders into the Velora container:
-
-- `dev/config` -> `/config`
-- `dev/cache` -> `/cache`
-- `dev/media` -> `/media`
-
-**Use the container paths (`/media`, `/cache`, `/config`) in code and in API payloads, not the `dev/*` host paths.**
-That contract lets the same binary move from local Docker to Unraid (or any other host) just by remapping bind mounts.
-
-The default SQLite database is stored at:
-
-```text
-dev/config/velora.db
-```
-
-In a container environment, map `/config` to durable app storage, `/cache` to cache storage, and `/media` to source
-media. For example:
-
-```text
-/config -> appdata/velora
-/cache  -> cache/velora
-/media  -> media share
-```
-
-`./velora destroy` keeps data under those mounts; `./velora clean` drops compose-managed volumes (the SQLite db included).
-
-## Optional Postgres
-
-SQLite is the default and requires no additional services. To use Postgres locally, enable the bundled profile:
-
-```bash
-./velora create --postgres
-```
-
-`./velora create --postgres` brings up a `postgres:18-alpine` service and wires Velora's database connection at it.
-Credentials come from `.env`:
-
-```env
-POSTGRES_DB=velora
-POSTGRES_USER=velora
-POSTGRES_PASSWORD=velora
-POSTGRES_PORT=5432
-```
-
-Velora can also connect to any external Postgres service by setting `VELORA_DATABASE_DRIVER=postgres` and
-`VELORA_DATABASE_URL` to that service's connection string before running Docker Compose directly.
-
-## Environment Variables
-
-Container variables (defaults shown):
-
-| Variable                 | Default                | Purpose                                                  |
-|--------------------------|------------------------|----------------------------------------------------------|
-| `PORT`                   | `8080`                 | HTTP listen port                                         |
-| `WEB_DIST_DIR`           | `/app/web`             | Directory of built web assets the Go server serves       |
-| `VELORA_CONFIG_DIR`      | `/config`              | Durable runtime config (SQLite db lives here by default) |
-| `VELORA_CACHE_DIR`       | `/cache`               | Rebuildable derived artifacts (transcodes, thumbnails)   |
-| `VELORA_MEDIA_DIR`       | `/media`               | Source media (treat as user-owned input)                 |
-| `VELORA_DATABASE_DRIVER` | `sqlite`               | `sqlite` (modernc.org/sqlite) or `postgres` (pgx/v5)     |
-| `VELORA_DATABASE_URL`    | `/config/velora.db`    | SQLite file path or Postgres DSN                         |
-
-Host-side compose overrides (control where the container's mount points come from on your machine):
-
-| Variable                  | Default          |
-|---------------------------|------------------|
-| `VELORA_HOST_CONFIG_DIR`  | `./dev/config`   |
-| `VELORA_HOST_CACHE_DIR`   | `./dev/cache`    |
-| `VELORA_HOST_MEDIA_DIR`   | `./dev/media`    |
-| `VELORA_HTTP_PORT`        | `8080`           |
-
-## Project Layout
+## Project layout
 
 ```text
 apps/
-  server/                          Go module: github.com/mdelle/velora/apps/server
-    cmd/velora/                    Entrypoint (signal-driven graceful shutdown)
-    internal/
-      database/                    sql.DB factory for sqlite/postgres
-      env/                         Shared env.OrDefault helper
-      health/                      GET /api/health
-      libraries/                   GET/POST /api/libraries + repository
-      migrations/                  Goose runner + embedded per-dialect SQL
-        sql/sqlite/
-        sql/postgres/
-      storage/                     Container mount-point bootstrapping
-      web/                         SPA-aware static file handler
-  web/                             React/Vite/TypeScript client
-    src/
-dev/
-  cache/                           Local derived cache artifacts
-  config/                          Local durable app state (SQLite db)
-  media/                           Local test media
-.github/workflows/                 CI pipeline (Go + web build/test)
-docker-compose.yml                 Local stack definition
-Dockerfile                         Multi-stage build (web + server → alpine + ffmpeg)
-velora                             Convenience CLI wrapping docker compose
+  server/                   Go API + media server (module: github.com/getvelora/velora/apps/server)
+    cmd/velora/             Entrypoint with graceful shutdown
+    internal/               One package per concern: database, env, health, libraries, migrations, storage, web
+  web/                      React/Vite/TypeScript client
+dev/                        Local bind-mount sources (config, cache, media)
+.github/workflows/          CI pipeline
+docker-compose.yml          Local stack
+Dockerfile                  Multi-stage build (web + server → alpine + ffmpeg)
+velora                      Convenience CLI around docker compose
 ```
 
-## Verification
+## CI
 
-Server tests — the repo carries checked-in build/mod caches, so point both vars at them or Go will rebuild from scratch:
+GitHub Actions runs the server (Go build, vet, race tests) and web (tsc + vite build) on every push and PR to
+`develop`. See `.github/workflows/ci.yml`. The server job pins to the Go version in `apps/server/go.mod`.
 
-```bash
-cd apps/server
-GOCACHE=$PWD/.cache/go-build GOMODCACHE=$PWD/.cache/go-mod go test -race ./...
-
-# Single package:
-GOCACHE=$PWD/.cache/go-build GOMODCACHE=$PWD/.cache/go-mod go test ./internal/libraries -run TestRepositoryCreateAndList -v
-```
-
-Web client typecheck + production build:
-
-```bash
-cd apps/web
-npm run build              # tsc + vite build
-```
-
-Full stack smoke:
-
-```bash
-./velora create
-curl http://localhost:8080/api/health
-```
-
-## Continuous Integration
-
-GitHub Actions runs the server and web jobs in `.github/workflows/ci.yml` on every push to `main` or `develop`, and on
-pull requests targeting either branch. The server job uses the Go version pinned in `apps/server/go.mod`; the web job
-uses Node 24. Both jobs cache their dependency stores. Tests run with `-race`.
-
-## Current Status
+## Status
 
 Implemented:
 
-- Dockerized Go server with graceful shutdown.
-- SQLite default database under `/config`.
-- Optional Postgres service via the `postgres` compose profile.
-- `/api/health` endpoint reports overall status and the active DB driver.
-- `/api/libraries` endpoint lists and creates configured media roots.
-- `libraries` table with per-dialect Goose migrations applied at startup.
-- React web shell served by the Velora image, with SPA deep-link routing.
-- FFmpeg installed in the runtime image.
-- GitHub Actions CI for server and web builds.
+- One-container Docker deploy with graceful shutdown and FFmpeg installed.
+- SQLite default, optional bundled or external Postgres.
+- Goose migrations applied at startup, with per-dialect embedded SQL.
+- `/api/health` (status + driver) and `/api/libraries` (list + create).
+- SPA deep-link routing for the served web client.
+- GitHub Actions CI on push + PR.
 
 Next planned milestone:
 
-- Begin scanning files from `/media`.
-- Expand `/api/libraries` to GET-by-id, PUT, and DELETE.
-- Introduce `media_files` and the scanner pipeline.
+- Scan files from `/media` into a `media_files` table.
+- Expand `/api/libraries` with GET-by-id, PUT, DELETE.
+- Begin the scanner pipeline (ffprobe-driven metadata).
