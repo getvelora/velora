@@ -1,4 +1,4 @@
-module github.com/mdelle/velora/apps/server
+module github.com/getvelora/velora/apps/server
 
 go 1.26.3
 

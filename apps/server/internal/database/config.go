@@ -1,6 +1,6 @@
 package database
 
-import "github.com/mdelle/velora/apps/server/internal/env"
+import "github.com/getvelora/velora/apps/server/internal/env"
 
 type Config struct {
 	Driver string

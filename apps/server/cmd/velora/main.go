@@ -9,13 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mdelle/velora/apps/server/internal/database"
-	"github.com/mdelle/velora/apps/server/internal/env"
-	"github.com/mdelle/velora/apps/server/internal/health"
-	"github.com/mdelle/velora/apps/server/internal/libraries"
-	"github.com/mdelle/velora/apps/server/internal/migrations"
-	"github.com/mdelle/velora/apps/server/internal/storage"
-	"github.com/mdelle/velora/apps/server/internal/web"
+	"github.com/getvelora/velora/apps/server/internal/database"
+	"github.com/getvelora/velora/apps/server/internal/env"
+	"github.com/getvelora/velora/apps/server/internal/health"
+	"github.com/getvelora/velora/apps/server/internal/libraries"
+	"github.com/getvelora/velora/apps/server/internal/migrations"
+	"github.com/getvelora/velora/apps/server/internal/storage"
+	"github.com/getvelora/velora/apps/server/internal/web"
 )
 
 func main() {

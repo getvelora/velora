@@ -3,7 +3,7 @@ package storage
 import (
 	"os"
 
-	"github.com/mdelle/velora/apps/server/internal/env"
+	"github.com/getvelora/velora/apps/server/internal/env"
 )
 
 type RuntimePaths struct {
