@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMMIT_HELPER="${VELORA_COMMIT_HELPER:-$ROOT_DIR/.velora/commit}"
+GOLANGCI_LINT_VERSION="v2.12.2"
 
 usage() {
   cat <<'USAGE'
@@ -14,7 +14,7 @@ Commands:
   clean                Stop the local environment and remove compose volumes
   status               Show local environment status
   logs                 Follow local environment logs
-  commit               Commit staged changes with a Conventional Commit message
+  lint                  Run the pinned Go linter
 USAGE
 }
 
@@ -78,13 +78,14 @@ logs_env() {
   run_compose logs -f
 }
 
-commit_staged_changes() {
-  if [[ ! -x "$COMMIT_HELPER" ]]; then
-    echo "Commit helper is missing or not executable: $COMMIT_HELPER" >&2
-    exit 1
-  fi
-
-  "$COMMIT_HELPER" "$ROOT_DIR"
+lint_go() {
+  docker run --rm \
+    -e GOCACHE=/app/.cache/go-build \
+    -e GOMODCACHE=/app/.cache/go-mod \
+    -v "$ROOT_DIR/apps/server:/app" \
+    -w /app \
+    "golangci/golangci-lint:$GOLANGCI_LINT_VERSION" \
+    golangci-lint run
 }
 
 main() {
@@ -107,8 +108,8 @@ main() {
     logs)
       logs_env
       ;;
-    commit)
-      commit_staged_changes
+    lint)
+      lint_go
       ;;
     -h|--help|help|"")
       usage
