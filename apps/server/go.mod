@@ -3,7 +3,7 @@ module github.com/getvelora/velora/apps/server
 go 1.26.3
 
 require (
-	github.com/jackc/pgx/v5 v5.9.2
+	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pressly/goose/v3 v3.27.1
 	modernc.org/sqlite v1.52.0
 )
