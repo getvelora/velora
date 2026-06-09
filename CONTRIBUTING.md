@@ -29,9 +29,16 @@ The repo includes a `./velora` helper script that wraps Docker Compose:
 ./velora status            # show container status
 ./velora destroy           # stop containers, keep volumes
 ./velora clean             # stop containers and remove compose volumes
+./velora lint              # run the pinned Go linter
 ```
 
 The stack publishes on `http://localhost:8080`. The web dev server (`apps/web`) runs separately on `:5173` and proxies `/api` to `:8080`.
+
+Enable the repository's Git hooks once after cloning:
+
+```bash
+git config core.hooksPath .githooks
+```
 
 ## Running the tests
 
@@ -89,7 +96,8 @@ A good PR:
 - Notes any config or data-persistence impact.
 - Includes screenshots or short clips for UI changes.
 
-CI runs the Go build/vet/test matrix and the web build on every PR. PRs need a green CI before merge.
+The committed pre-commit hook runs `./velora lint`. CI also runs the Go build/vet/test matrix, lint, web build, and
+Docker smoke test on every PR. Hooks can be bypassed locally, so PRs still need a green CI before merge.
 
 ## License
 

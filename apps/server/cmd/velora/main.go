@@ -32,7 +32,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("close database: %v", err)
+		}
+	}()
 
 	if err := waitForDatabase(ctx, db.PingContext); err != nil {
 		log.Fatalf("ping database: %v", err)
