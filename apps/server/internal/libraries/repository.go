@@ -38,7 +38,9 @@ func (r *Repository) List(ctx context.Context) ([]Library, error) {
 	if err != nil {
 		return nil, fmt.Errorf("query libraries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	out := []Library{}
 	for rows.Next() {
