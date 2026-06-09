@@ -46,8 +46,7 @@ Then open <http://localhost:8080> in a browser. You should see the Velora web sh
 
 ## 4. Create a library
 
-A library is a configured root path inside `/media` that Velora will scan for media files. Right now libraries are
-configuration-only — the scanner ships in the next milestone.
+A library is a configured root path inside `/media` that Velora scans for supported video files.
 
 Drop a test file where the container can see it:
 
@@ -76,7 +75,25 @@ List your libraries to confirm:
 curl http://localhost:8080/api/libraries
 ```
 
-## 5. Stop and clean up
+## 5. Scan the library
+
+Use the returned library ID to start a synchronous scan:
+
+```bash
+curl -X POST http://localhost:8080/api/libraries/1/scan
+```
+
+The response reports discovered, added, updated, unchanged, restored, missing, and ignored counts. List the persisted
+inventory:
+
+```bash
+curl http://localhost:8080/api/libraries/1/files
+```
+
+Paths in this response are relative to the library root. When a previously scanned file disappears, Velora retains
+its row with `status: "missing"`; restoring the file changes the same row back to `available`.
+
+## 6. Stop and clean up
 
 ```bash
 ./velora destroy     # stop containers, keep your data (the SQLite db survives)

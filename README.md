@@ -3,8 +3,8 @@
 Velora is a local-first media server with a bundled React web client. The Go server, FFmpeg, and the built web assets
 ship as a single container; Apple-device browser playback is the first client target.
 
-The project is pre-release. SQLite is the default, Postgres is opt-in, and the server currently exposes `/api/health`
-and `/api/libraries`. Media scanning is the next milestone.
+The project is pre-release. SQLite is the default, Postgres is opt-in, and the server exposes health, library
+registration, and synchronous incremental media scanning APIs. ffprobe inspection is the next milestone.
 
 ## Goals
 
@@ -74,6 +74,25 @@ curl -X POST http://localhost:8080/api/libraries \
 
 Returns `400` for missing fields, `409` if the path is already configured.
 
+### `POST /api/libraries/{id}/scan`
+
+Walks one library, persists supported video files, and returns reconciliation counts:
+
+```bash
+curl -X POST http://localhost:8080/api/libraries/1/scan
+# {"libraryId":1,"discovered":2,"added":2,...}
+```
+
+Scans skip symlinks and unsupported files. A second concurrent scan of the same library returns `409`.
+
+### `GET /api/libraries/{id}/files`
+
+Lists the persisted file inventory, including files currently marked `missing`:
+
+```bash
+curl http://localhost:8080/api/libraries/1/files
+```
+
 ## Local development
 
 Server tests — the repo carries checked-in build/mod caches, so point both vars at them:
@@ -129,7 +148,7 @@ then `./velora create` (no `--postgres` needed; that flag is only for the bundle
 apps/
   server/                   Go API + media server (module: github.com/getvelora/velora/apps/server)
     cmd/velora/             Entrypoint with graceful shutdown
-    internal/               One package per concern: database, env, health, libraries, migrations, storage, web
+    internal/               Packages for database, libraries, media files, migrations, storage, health, and web
   web/                      React/Vite/TypeScript client
 dev/                        Local bind-mount sources (config, cache, media)
 .github/workflows/          CI pipeline
@@ -157,12 +176,13 @@ Implemented:
 - One-container Docker deploy with graceful shutdown and FFmpeg installed.
 - SQLite default, optional bundled or external Postgres.
 - Goose migrations applied at startup, with per-dialect embedded SQL.
-- `/api/health` (status + driver) and `/api/libraries` (list + create).
+- `/api/health` and `/api/libraries` (list + create).
+- Synchronous incremental media discovery with persisted missing/restored state.
 - SPA deep-link routing for the served web client.
 - GitHub Actions CI on push + PR.
 
 ## Roadmap
 
-The next milestone is incremental media scanning and ffprobe-based file inspection. See [`ROADMAP.md`](ROADMAP.md) for
-the planned path through metadata, playback, hardware-accelerated transcoding, 4K/HDR support, household profiles,
-portable deployment, and instance-to-instance library sharing.
+The next milestone is ffprobe-based stream and container inspection. See [`ROADMAP.md`](ROADMAP.md) for the planned
+path through metadata, playback, hardware-accelerated transcoding, 4K/HDR support, household profiles, portable
+deployment, and instance-to-instance library sharing.

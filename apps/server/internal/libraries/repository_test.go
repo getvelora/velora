@@ -79,6 +79,28 @@ func TestRepositoryListEmpty(t *testing.T) {
 	}
 }
 
+func TestRepositoryGetReturnsLibraryAndNotFound(t *testing.T) {
+	db := openSQLiteWithSchema(t)
+	repo := NewRepository(db, "sqlite")
+	ctx := context.Background()
+
+	created, err := repo.Create(ctx, "Movies", "/media/movies")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	got, err := repo.Get(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got != created {
+		t.Fatalf("unexpected library:\n got: %+v\nwant: %+v", got, created)
+	}
+
+	if _, err := repo.Get(ctx, 999); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
 // openSQLiteWithSchema opens a fresh in-memory SQLite database and applies the
 // libraries schema. Mirrors the production migration; updated together when the
 // migration changes.

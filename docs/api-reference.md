@@ -66,7 +66,7 @@ Create a new library.
 | Field  | Type   | Required | Notes                                                       |
 |--------|--------|----------|-------------------------------------------------------------|
 | `name` | string | yes      | Display name. Not required to be unique.                    |
-| `path` | string | yes      | **Container path** (e.g. `/media/movies`). Must be unique.  |
+| `path` | string | yes      | Absolute **container path** within `VELORA_MEDIA_DIR`. Must be unique. |
 
 **Status codes**
 
@@ -81,6 +81,62 @@ Create a new library.
 ```json
 {"error": "library with this path already exists"}
 ```
+
+## `POST /api/libraries/{id}/scan`
+
+Synchronously discovers supported video files under a library and atomically reconciles its persisted inventory.
+Symlinks are not followed. If traversal fails, the previous inventory remains unchanged.
+
+**Response (200)**
+
+```json
+{
+  "libraryId": 1,
+  "discovered": 2,
+  "added": 1,
+  "updated": 0,
+  "unchanged": 1,
+  "restored": 0,
+  "markedMissing": 0,
+  "ignored": 3,
+  "startedAt": "2026-06-09T12:00:00Z",
+  "completedAt": "2026-06-09T12:00:00.125Z"
+}
+```
+
+Supported extensions are matched case-insensitively: `.mkv`, `.mp4`, `.m4v`, `.mov`, `.avi`, `.webm`, `.mpeg`,
+`.mpg`, `.ts`, `.m2ts`, and `.wmv`.
+
+| Code | Meaning                                                        |
+|------|----------------------------------------------------------------|
+| 200  | Scan completed and inventory was reconciled.                   |
+| 404  | The library does not exist.                                    |
+| 409  | Another scan of the same library is already running.           |
+| 500  | The path is unavailable/unsafe, traversal failed, or save failed. |
+
+## `GET /api/libraries/{id}/files`
+
+Returns all persisted files for a library, ordered by relative path. Missing files remain visible.
+
+**Response (200)**
+
+```json
+[
+  {
+    "id": 12,
+    "libraryId": 1,
+    "path": "movies/Example.mkv",
+    "size": 734003200,
+    "modifiedAt": "2026-06-01T10:30:00Z",
+    "status": "available",
+    "firstSeenAt": "2026-06-09T12:00:00Z",
+    "lastSeenAt": "2026-06-09T12:05:00Z",
+    "missingAt": null
+  }
+]
+```
+
+Returns `404` when the library does not exist and `500` when inventory cannot be loaded.
 
 ## Method-not-allowed semantics
 
@@ -102,6 +158,5 @@ Coming in upcoming milestones:
 - `GET /api/libraries/{id}` — fetch a single library
 - `PUT /api/libraries/{id}` — update name and path
 - `DELETE /api/libraries/{id}` — remove a library
-- `GET /api/libraries/{id}/files` — list scanned files in a library
-- Scanner control endpoints (start, status, cancel)
+- Background scanner control endpoints (start, status, cancel)
 - Playback session lifecycle endpoints

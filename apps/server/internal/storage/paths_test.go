@@ -30,3 +30,45 @@ func TestEnsureRuntimeDirectoriesCreatesMissingPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateMediaPathAcceptsRootAndDescendants(t *testing.T) {
+	for _, candidate := range []string{
+		"/media",
+		"/media/movies",
+		"/media/movies/4k",
+	} {
+		if err := ValidateMediaPath("/media", candidate); err != nil {
+			t.Fatalf("expected %q to be valid: %v", candidate, err)
+		}
+	}
+}
+
+func TestValidateMediaPathRejectsUnsafePaths(t *testing.T) {
+	cases := []string{
+		"media/movies",
+		"/media2/movies",
+		"/media/movies/../tv",
+		"/media/..",
+		"/etc",
+	}
+	for _, candidate := range cases {
+		t.Run(candidate, func(t *testing.T) {
+			if err := ValidateMediaPath("/media", candidate); err == nil {
+				t.Fatalf("expected %q to be rejected", candidate)
+			}
+		})
+	}
+}
+
+func TestValidateResolvedMediaPathRejectsSymlinkInsideMediaRoot(t *testing.T) {
+	mediaRoot := t.TempDir()
+	target := t.TempDir()
+	link := filepath.Join(mediaRoot, "linked")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatalf("create symlink: %v", err)
+	}
+
+	if err := ValidateResolvedMediaPath(mediaRoot, link); err == nil {
+		t.Fatal("expected symlinked library path to be rejected")
+	}
+}

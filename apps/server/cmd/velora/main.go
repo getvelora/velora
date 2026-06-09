@@ -13,6 +13,7 @@ import (
 	"github.com/getvelora/velora/apps/server/internal/env"
 	"github.com/getvelora/velora/apps/server/internal/health"
 	"github.com/getvelora/velora/apps/server/internal/libraries"
+	"github.com/getvelora/velora/apps/server/internal/mediafiles"
 	"github.com/getvelora/velora/apps/server/internal/migrations"
 	"github.com/getvelora/velora/apps/server/internal/storage"
 	"github.com/getvelora/velora/apps/server/internal/web"
@@ -47,6 +48,13 @@ func main() {
 	}
 
 	libraryStore := libraries.NewRepository(db, databaseConfig.Driver)
+	mediaFileStore := mediafiles.NewRepository(db, databaseConfig.Driver)
+	mediaFileHandler := mediafiles.NewHandler(
+		libraryStore,
+		mediaFileStore,
+		runtimePaths.Media,
+		mediafiles.Discover,
+	)
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/health", health.NewHandler(databaseConfig.Driver, func() error {
@@ -54,7 +62,9 @@ func main() {
 		defer cancel()
 		return db.PingContext(pingCtx)
 	}))
-	mux.Handle("/api/libraries", libraries.NewHandler(libraryStore))
+	mux.Handle("/api/libraries", libraries.NewHandler(libraryStore, runtimePaths.Media))
+	mux.Handle("GET /api/libraries/{id}/files", mediaFileHandler)
+	mux.Handle("POST /api/libraries/{id}/scan", mediaFileHandler)
 	mux.Handle("/", web.NewSPAHandler(env.OrDefault("WEB_DIST_DIR", "/app/web")))
 
 	addr := ":" + env.OrDefault("PORT", "8080")

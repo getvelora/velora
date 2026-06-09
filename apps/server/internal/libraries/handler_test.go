@@ -43,6 +43,15 @@ func (s *stubStore) Create(ctx context.Context, name, path string) (Library, err
 	return lib, nil
 }
 
+func (s *stubStore) Get(ctx context.Context, id int64) (Library, error) {
+	for _, library := range s.libraries {
+		if library.ID == id {
+			return library, nil
+		}
+	}
+	return Library{}, ErrNotFound
+}
+
 func TestHandlerGetReturnsLibrariesAsArray(t *testing.T) {
 	t.Parallel()
 
@@ -115,6 +124,36 @@ func TestHandlerPostMissingFieldsReturns400(t *testing.T) {
 	}
 }
 
+func TestHandlerPostRejectsPathOutsideMediaRoot(t *testing.T) {
+	t.Parallel()
+
+	rec := callHandler(
+		&stubStore{},
+		http.MethodPost,
+		`{"name":"Movies","path":"/etc/movies"}`,
+	)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerPostCleansContainedPath(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{}
+	rec := callHandler(
+		store,
+		http.MethodPost,
+		`{"name":"Movies","path":"/media/./movies"}`,
+	)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if store.libraries[0].Path != "/media/movies" {
+		t.Fatalf("expected clean path, got %q", store.libraries[0].Path)
+	}
+}
+
 func TestHandlerPostDuplicatePathReturns409(t *testing.T) {
 	t.Parallel()
 
@@ -162,6 +201,6 @@ func callHandler(store Store, method, body string) *httptest.ResponseRecorder {
 		req = httptest.NewRequest(method, "/api/libraries", http.NoBody)
 	}
 	rec := httptest.NewRecorder()
-	NewHandler(store).ServeHTTP(rec, req)
+	NewHandler(store, "/media").ServeHTTP(rec, req)
 	return rec
 }

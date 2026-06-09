@@ -1,6 +1,6 @@
 // Package libraries owns the model and persistence for configured media
 // roots. Each library is a (name, path) pair pointing at a directory under
-// /media that the scanner will eventually walk.
+// the configured media root that the scanner walks.
 package libraries
 
 import "time"

@@ -11,7 +11,10 @@ import (
 
 // ErrPathAlreadyExists is returned by Repository.Create when the path uniqueness
 // constraint is violated. Handlers translate this into a 409 Conflict.
-var ErrPathAlreadyExists = errors.New("library with this path already exists")
+var (
+	ErrPathAlreadyExists = errors.New("library with this path already exists")
+	ErrNotFound          = errors.New("library not found")
+)
 
 // Repository persists Library values. It supports both SQLite and Postgres
 // via the driver name passed at construction time; timestamps are stored as
@@ -58,6 +61,44 @@ func (r *Repository) List(ctx context.Context) ([]Library, error) {
 		out = append(out, lib)
 	}
 	return out, rows.Err()
+}
+
+func (r *Repository) Get(ctx context.Context, id int64) (Library, error) {
+	query := `
+		SELECT id, name, path, created_at, updated_at
+		FROM libraries
+		WHERE id = ?
+	`
+	if r.driver == "postgres" {
+		query = `
+			SELECT id, name, path, created_at, updated_at
+			FROM libraries
+			WHERE id = $1
+		`
+	}
+
+	var library Library
+	var created, updated string
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&library.ID,
+		&library.Name,
+		&library.Path,
+		&created,
+		&updated,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Library{}, ErrNotFound
+	}
+	if err != nil {
+		return Library{}, fmt.Errorf("query library %d: %w", id, err)
+	}
+	if library.CreatedAt, err = time.Parse(time.RFC3339Nano, created); err != nil {
+		return Library{}, fmt.Errorf("parse created_at %q: %w", created, err)
+	}
+	if library.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated); err != nil {
+		return Library{}, fmt.Errorf("parse updated_at %q: %w", updated, err)
+	}
+	return library, nil
 }
 
 // Create inserts a new library with the given name and path. Returns
