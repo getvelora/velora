@@ -21,7 +21,7 @@ body:
       label: Steps to reproduce
       description: Minimal, ordered steps. Include exact commands or curl invocations where possible.
       placeholder: |
-        1. ./velora create
+        1. docker compose up -d
         2. curl http://localhost:8080/api/...
         3. Observe ...
     validations:
@@ -74,7 +74,7 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Output of `./velora logs` around the time of the issue.
+      description: Output of `docker compose logs velora` around the time of the issue.
       render: shell
 
   - type: checkboxes

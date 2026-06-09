@@ -1,169 +1,132 @@
 # Troubleshooting
 
-Common issues and how to diagnose them. If you hit something not covered, capture the logs (`./velora logs`) and open
-an issue.
+These instructions assume the public `compose.yml` and the published GHCR image. Contributors using `./velora`
+should see the final section.
 
-## The stack won't start
+## The Container Will Not Start
 
-### Port conflict
-
-`./velora create` errors with something like *"bind: address already in use"*. Another process is on 8080.
+Check status and logs:
 
 ```bash
-# See what's bound:
-lsof -i :8080
-
-# Either stop that process, or pick a different port in .env:
-echo 'VELORA_HTTP_PORT=8081' >> .env
-./velora destroy && ./velora create
+docker compose ps
+docker compose logs velora
 ```
 
-### Docker not running / no socket access
+If port `8080` is already in use, change the host side of the port mapping:
 
-`docker compose` says it can't connect to the daemon. Start Docker Desktop, or on Linux ensure your user is in the
-`docker` group:
+```yaml
+ports:
+  - "8081:8080"
+```
+
+Then apply the change:
 
 ```bash
-sudo usermod -aG docker $USER
-# log out and back in
+docker compose up -d
 ```
 
-### Build fails on Go or Node version
+If Docker cannot connect to its daemon, start Docker Desktop or ensure your Linux user has Docker access.
 
-The Dockerfile pins specific versions. If those tags no longer exist on Docker Hub (rare but possible during transition
-periods), update the `FROM` lines in `Dockerfile` to a known-good tag. The Go version in `apps/server/go.mod` is the
-authoritative target.
+## Pulling The Image Fails
 
-## `/api/health` returns 503
+Confirm the image name is:
 
-Means the database ping is failing.
+```text
+ghcr.io/getvelora/velora:latest
+```
 
-### With SQLite
-
-Almost always a file-permission or mount issue. Check:
+Released images are public and do not require registry authentication. Check the release/tag exists, then retry:
 
 ```bash
-ls -ld dev/config
-docker compose exec velora ls -la /config
+docker compose pull
+docker compose up -d
 ```
 
-The container needs to be able to read and write `/config`. If you've bind-mounted a read-only volume or a directory
-with restrictive permissions, that'll fail. Velora runs as root inside the container by default, so this mostly bites
-on SELinux-enabled Linux hosts or when mounting NFS with `noexec`/`nosuid`.
+## `/api/health` Returns 503
 
-### With bundled Postgres
-
-The Postgres container hasn't finished booting, or the wait loop timed out:
+Inspect logs first:
 
 ```bash
-./velora logs                                          # check both services
-docker compose --profile postgres exec postgres pg_isready -U velora -d velora
+docker compose logs velora
 ```
 
-If `pg_isready` reports `accepting connections` but Velora still 503s, check the DSN that the wrapper built:
+With default SQLite, verify that `/config` is writable:
 
 ```bash
-docker compose exec velora env | grep VELORA_DATABASE
+docker compose exec velora sh -c 'touch /config/.write-test && rm /config/.write-test'
 ```
 
-### With external Postgres
+With external Postgres, confirm `VELORA_DATABASE_URL` is reachable from inside the container. The hostname must resolve
+on the container network, not only on the host.
 
-Most common: bad DSN. The format is:
+## Media Is Not Visible
 
-```
-postgres://user:password@host:port/dbname?sslmode=disable
-```
-
-Note `sslmode=disable` is the easiest starting point but you almost certainly want `sslmode=require` against a remote
-database. Network reachability also matters — `host` must be resolvable from inside the Velora container, not just from
-the host. Use `host.docker.internal` (Docker Desktop) or a compose network alias if Postgres runs on the same machine.
-
-## My media isn't visible
-
-Almost always container-vs-host path confusion.
-
-Symptoms:
-- You created a library with path `./dev/media/movies` (the host path). API accepted it because the path string is just
-  text — but nothing under `/media` matches, so scans will find nothing.
-- You set `VELORA_HOST_MEDIA_DIR` to a new location but library paths still reference the old one.
-
-Diagnose by checking what `/media` looks like from inside the container:
+Check the mounted tree:
 
 ```bash
-docker compose exec velora ls /media
-docker compose exec velora ls /media/movies
+docker compose exec velora ls -la /media
 ```
 
-If the directory tree isn't what you expect, fix the bind mount in `.env` and recreate the container. If it's right but
-your library path is wrong, delete and recreate the library with the correct container path. (Deletion isn't an API yet
-— for now, edit the SQLite db directly or `./velora clean` if you don't mind starting fresh.)
+The host mount and API library path are different namespaces. For this mount:
 
-## A migration failed at startup
-
-Velora applies Goose migrations on every boot. If one fails, the container exits with a fatal log and the database is
-left in whatever state the failed migration reached.
-
-```bash
-./velora logs | grep -iE 'migration|goose'
+```yaml
+- /mnt/storage/videos:/media:ro
 ```
 
-For SQLite during pre-release, the simplest recovery is to nuke and restart:
+register a movie directory as `/media/movies`, not `/mnt/storage/videos/movies`.
+
+Also confirm the source exists on the host and that Docker has permission to read it. On Docker Desktop, the host path
+may need to be allowed in file-sharing settings.
+
+## A Migration Failed
+
+Velora applies embedded migrations at startup. Preserve `/config`, capture the logs, and do not repeatedly delete or
+recreate data while investigating:
 
 ```bash
-./velora destroy
-rm dev/config/velora.db
-./velora create
+docker compose logs velora
 ```
 
-For Postgres, connect with `psql` and inspect `goose_db_version`. You may need to manually delete the failed row before
-the next boot will retry.
-
-## Changed `.env` and nothing happened
-
-Compose re-reads `.env` only when bringing a service up. After editing:
+For a disposable pre-release installation, a complete reset is:
 
 ```bash
-./velora destroy
-./velora create
+docker compose down --volumes
+docker compose up -d
 ```
 
-Or force a recreate without rebuilding the image:
+This permanently deletes the SQLite database and all Velora configuration.
+
+## Upgrade Did Not Change The Version
+
+Pull before recreating:
 
 ```bash
-docker compose up -d --force-recreate
+docker compose pull
+docker compose up -d
 ```
 
-## Resetting everything
-
-When you want a totally clean state (testing migrations, starting over):
+If the service still uses an old image, inspect it:
 
 ```bash
-./velora clean              # stops containers + drops compose-managed volumes
-rm -rf dev/cache/* dev/config/*
-./velora create
+docker compose images
 ```
 
-`dev/media/` is your source files — left alone.
-
-## Inspecting the running container
+## Inspecting The Container
 
 ```bash
-# Shell into it:
 docker compose exec velora sh
-
-# Watch live logs:
-./velora logs
-
-# Hit endpoints from inside (verifies port binding vs in-container listening):
 docker compose exec velora wget -qO- http://localhost:8080/api/health
 ```
 
-## Where to find the version
+## Contributor Development
 
-The build doesn't currently stamp a version. To identify what's deployed, use the git SHA of the commit you built from:
+`./velora` is only for a repository checkout and always targets `compose.dev.yml`:
 
 ```bash
-git rev-parse --short HEAD
+./velora status
+./velora logs
+./velora destroy
+./velora create
 ```
 
-A versioned `/api/version` endpoint is on the roadmap.
+Development `.env`, source mounts, `web-build`, and the local Postgres profile do not apply to public installations.

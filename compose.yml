@@ -1,0 +1,14 @@
+services:
+  velora:
+    image: ghcr.io/getvelora/velora:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - velora-config:/config
+      - velora-cache:/cache
+      - /path/to/your/media:/media:ro
+
+volumes:
+  velora-config:
+  velora-cache:

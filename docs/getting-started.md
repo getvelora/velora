@@ -1,61 +1,71 @@
 # Getting Started
 
-A walkthrough from cloning the repo to your first library. ~5 minutes.
+Velora ships as one prebuilt container containing the Go server, web client, and FFmpeg. Running Velora does not
+require cloning the repository, installing Node or Go, building an image, or creating an `.env` file.
 
 ## Prerequisites
 
-- Docker Desktop (macOS, Windows with WSL2) or Docker Engine + Compose (Linux).
-- Port `8080` free on the host. If it's taken, set `VELORA_HTTP_PORT=8081` (or any free port) in `.env` later.
+- Docker Engine, Docker Desktop, or another OCI-compatible container manager.
+- A host directory containing your movies and TV files.
+- Port `8080` available, or another host port of your choice.
 
-## 1. Clone and configure
+## Docker Compose (recommended)
+
+Download the deployment example:
 
 ```bash
-git clone https://github.com/getvelora/velora.git
+mkdir velora
 cd velora
-cp .env.example .env
+curl -LO https://github.com/getvelora/velora/releases/latest/download/compose.yml
 ```
 
-The default `.env` runs the SQLite stack on port 8080 with bind mounts under `./dev/`. No edits required unless you
-want a different port, Postgres, or different host paths — see [Configuration](configuration.md).
-
-## 2. Build and start
+Edit `compose.yml` and replace `/path/to/your/media` with the absolute host path containing your media. Then start:
 
 ```bash
-./velora create
+docker compose up -d
+docker compose logs -f velora
 ```
 
-This runs a multi-stage Docker build (web client → Go server → Alpine + FFmpeg runtime) and brings up one container.
-First build takes ~30 seconds; rebuilds use the layer cache.
+Compose pulls `ghcr.io/getvelora/velora:latest`, creates durable named volumes for `/config` and `/cache`, mounts your
+media read-only at `/media`, and publishes Velora at <http://localhost:8080>.
 
-Watch the boot logs if you want to see migrations applying:
+To upgrade later:
 
 ```bash
-./velora logs
+docker compose pull
+docker compose up -d
 ```
 
-When you see `velora server listening on :8080`, it's ready.
+## Docker CLI
 
-## 3. Verify
+The equivalent command without Compose is:
+
+```bash
+docker run -d \
+  --name velora \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v velora-config:/config \
+  -v velora-cache:/cache \
+  -v /path/to/your/media:/media:ro \
+  ghcr.io/getvelora/velora:latest
+```
+
+Replace `/path/to/your/media` before running it. Upgrade by pulling the new image and recreating the container with
+the same mounts.
+
+## Verify
 
 ```bash
 curl http://localhost:8080/api/health
 # {"status":"ok","database":"ok","databaseDriver":"sqlite"}
 ```
 
-Then open <http://localhost:8080> in a browser. You should see the Velora web shell with a green status pill.
+Then open <http://localhost:8080>.
 
-## 4. Create a library
+## Create And Scan A Library
 
-A library is a configured root path inside `/media` that Velora scans for supported video files.
-
-Drop a test file where the container can see it:
-
-```bash
-mkdir -p dev/media/movies
-# put a file or two in dev/media/movies/
-```
-
-Tell Velora about that root:
+The API uses container paths, so a library under your mounted media must begin with `/media`:
 
 ```bash
 curl -X POST http://localhost:8080/api/libraries \
@@ -63,48 +73,22 @@ curl -X POST http://localhost:8080/api/libraries \
   -d '{"name":"Movies","path":"/media/movies"}'
 ```
 
-You should get back a `201` with the created library, including its `id`, `createdAt`, and `updatedAt`.
-
-> **Important**: the `path` field is the **container** path (`/media/movies`), not the host path (`./dev/media/movies`).
-> The same value works the same way whether you run Velora on your laptop or on a NAS — that's the whole point of
-> [container paths](configuration.md#container-paths).
-
-List your libraries to confirm:
-
-```bash
-curl http://localhost:8080/api/libraries
-```
-
-## 5. Scan the library
-
-Use the returned library ID to start a synchronous scan:
+Use the returned ID to scan and list files:
 
 ```bash
 curl -X POST http://localhost:8080/api/libraries/1/scan
-```
-
-The response reports discovered, added, updated, unchanged, restored, missing, and ignored counts. List the persisted
-inventory:
-
-```bash
 curl http://localhost:8080/api/libraries/1/files
 ```
 
-Paths in this response are relative to the library root. When a previously scanned file disappears, Velora retains
-its row with `status: "missing"`; restoring the file changes the same row back to `available`.
+## Stop Or Remove
 
-## 6. Stop and clean up
+With Compose:
 
 ```bash
-./velora destroy     # stop containers, keep your data (the SQLite db survives)
-./velora clean       # stop containers AND drop compose volumes (data is lost)
+docker compose stop          # stop while preserving all data
+docker compose down          # remove the container, preserve named volumes
+docker compose down --volumes # also delete Velora's config/database and cache
 ```
 
-`./velora destroy` is what you want for everyday "I'm done for the day"; `./velora clean` is for "give me a fresh
-state."
-
-## Next steps
-
-- Point Velora at real media paths on your machine or a NAS: [Configuration](configuration.md).
-- See what the API can do: [API Reference](api-reference.md).
-- Stuck? [Troubleshooting](troubleshooting.md).
+The public setup is intentionally separate from contributor development. Developers working from source should use
+[`CONTRIBUTING.md`](../CONTRIBUTING.md) and `./velora`, which targets `compose.dev.yml`.

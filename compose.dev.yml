@@ -17,6 +17,27 @@ services:
       - ${VELORA_HOST_MEDIA_DIR:-./dev/media}:${VELORA_MEDIA_DIR:-/media}
       - ${VELORA_HOST_CACHE_DIR:-./dev/cache}:${VELORA_CACHE_DIR:-/cache}
       - ${VELORA_HOST_CONFIG_DIR:-./dev/config}:${VELORA_CONFIG_DIR:-/config}
+      - ./apps/web/dist:/app/web:ro
+
+  web-build:
+    image: node:26-alpine
+    profiles:
+      - tools
+    working_dir: /workspace
+    environment:
+      VELORA_HOST_UID: ${VELORA_HOST_UID:-1000}
+      VELORA_HOST_GID: ${VELORA_HOST_GID:-1000}
+    volumes:
+      - ./apps/web:/workspace
+      - web-node-modules:/workspace/node_modules
+      - web-npm-cache:/root/.npm
+    command:
+      - sh
+      - -c
+      - >-
+        npm ci &&
+        npm run build &&
+        chown -R "$${VELORA_HOST_UID}:$${VELORA_HOST_GID}" /workspace/dist
 
   postgres:
     image: postgres:18-alpine
@@ -38,3 +59,5 @@ services:
 
 volumes:
   postgres-18-data:
+  web-node-modules:
+  web-npm-cache:

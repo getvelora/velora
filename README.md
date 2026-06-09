@@ -8,7 +8,7 @@ registration, and synchronous incremental media scanning APIs. ffprobe inspectio
 
 ## Goals
 
-- One-container deploy that works the same locally (Docker Compose) and on real hosts (Unraid, etc.).
+- One published container that runs consistently across Docker, Unraid, and other container hosts.
 - Container paths (`/config`, `/cache`, `/media`) as the only contract; host paths are a compose concern.
 - Direct play whenever the client can handle the original media; FFmpeg-driven transcoding otherwise.
 - Lightweight, opinionated, easy to read.
@@ -20,26 +20,37 @@ registration, and synchronous incremental media scanning APIs. ffprobe inspectio
 - React + Vite + TypeScript, served by the Go binary with SPA deep-link routing.
 - FFmpeg in the runtime image. Docker Compose for local dev. GitHub Actions for CI.
 
-## Quick start
+## Install
+
+Velora publishes a complete image to `ghcr.io/getvelora/velora`. It already contains the server, web client, and
+FFmpeg. End users do not need this repository, Node, Go, `.env`, or an image build.
+
+### Docker Compose (recommended)
 
 ```bash
-cp .env.example .env       # defaults work for the SQLite stack
-./velora create            # build the image and bring the stack up on :8080
+curl -LO https://github.com/getvelora/velora/releases/latest/download/compose.yml
+# Edit /path/to/your/media in compose.yml.
+docker compose up -d
 curl http://localhost:8080/api/health
 ```
 
-The `./velora` wrapper covers the common lifecycle commands:
+Compose pulls `ghcr.io/getvelora/velora:latest`, creates durable config/cache volumes, and mounts your media read-only.
+
+### Docker CLI
 
 ```bash
-./velora create [--postgres]   # build + up; --postgres enables the bundled Postgres profile
-./velora destroy               # stop containers, keep volumes and host bind mounts
-./velora clean                 # stop containers, drop compose-managed volumes (SQLite db is lost)
-./velora status                # docker compose ps
-./velora logs                  # follow container logs
-./velora lint                  # run the pinned Go linter
+docker run -d \
+  --name velora \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v velora-config:/config \
+  -v velora-cache:/cache \
+  -v /path/to/your/media:/media:ro \
+  ghcr.io/getvelora/velora:latest
 ```
 
-For step-by-step setup, deeper config patterns, and troubleshooting, see [`docs/`](docs/).
+Replace `/path/to/your/media` with the real host path. See [`docs/getting-started.md`](docs/getting-started.md) for the
+full setup.
 
 ## HTTP API
 
@@ -95,6 +106,16 @@ curl http://localhost:8080/api/libraries/1/files
 
 ## Local development
 
+This section is for contributors working from a repository clone. It is not the public installation path.
+
+```bash
+cp .env.development.example .env   # optional local overrides
+./velora create                    # build source and start the development stack
+./velora web-build                 # rebuild mounted web assets without rebuilding the app image
+```
+
+`./velora` always uses `compose.dev.yml`. The public `compose.yml` never builds source or mounts development assets.
+
 Server tests — the repo carries checked-in build/mod caches, so point both vars at them:
 
 ```bash
@@ -111,7 +132,16 @@ cd apps/web
 npm run dev                # vite on :5173, /api proxies to the running container on :8080
 ```
 
-For a production-shape build of the web client: `npm run build` (`tsc` + `vite build`).
+For a production-shape build without installing Node locally:
+
+```bash
+./velora web-build
+```
+
+This runs `npm run build` in a disposable Node container. The generated `apps/web/dist` directory is mounted into the
+running Velora container, so refreshing the browser serves the new assets without rebuilding the app image. Compose
+recreates the server only when needed to apply a changed mount configuration. `./velora create` runs this build once
+before starting the stack so the bind mount is never empty.
 
 ## Configuration
 
@@ -136,11 +166,8 @@ Environment variables (container side; defaults shown):
 | `VELORA_DATABASE_DRIVER` | `sqlite`            | `sqlite` or `postgres`                               |
 | `VELORA_DATABASE_URL`    | `/config/velora.db` | SQLite file path or Postgres DSN                     |
 
-Host-side overrides (where bind mounts come from on your machine): `VELORA_HOST_CONFIG_DIR`, `VELORA_HOST_CACHE_DIR`,
-`VELORA_HOST_MEDIA_DIR`, `VELORA_HTTP_PORT`. Defaults map to `./dev/*` and `:8080`.
-
-To use an external Postgres, set `VELORA_DATABASE_DRIVER=postgres` and `VELORA_DATABASE_URL=postgres://…` in `.env`,
-then `./velora create` (no `--postgres` needed; that flag is only for the bundled compose service).
+Contributor-only host overrides are documented in [CONTRIBUTING.md](CONTRIBUTING.md). Public deployments configure
+mounts, ports, and optional environment values directly in Compose, `docker run`, or their container manager.
 
 ## Project layout
 
@@ -152,9 +179,10 @@ apps/
   web/                      React/Vite/TypeScript client
 dev/                        Local bind-mount sources (config, cache, media)
 .github/workflows/          CI pipeline
-docker-compose.yml          Local stack
+compose.yml                 Public GHCR deployment example
+compose.dev.yml             Contributor development stack
 Dockerfile                  Multi-stage build (web + server → alpine + ffmpeg)
-velora                      Convenience CLI around docker compose
+velora                      Contributor CLI around compose.dev.yml
 ```
 
 ## CI

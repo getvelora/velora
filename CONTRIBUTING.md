@@ -20,19 +20,23 @@ Velora is a single container that bundles a Go HTTP server and a React/Vite web 
 
 ## Getting the project running
 
-The repo includes a `./velora` helper script that wraps Docker Compose:
+The repo includes a contributor-only `./velora` helper around `compose.dev.yml`. This stack builds local source and is
+deliberately different from the public `compose.yml`, which pulls the released GHCR image.
 
 ```bash
+cp .env.development.example .env # optional local overrides
 ./velora create            # build and start the default SQLite stack
 ./velora create --postgres # build and start with local Postgres
 ./velora logs              # follow container logs
 ./velora status            # show container status
 ./velora destroy           # stop containers, keep volumes
 ./velora clean             # stop containers and remove compose volumes
+./velora web-build         # rebuild mounted web assets without rebuilding the app image
 ./velora lint              # run the pinned Go linter
 ```
 
-The stack publishes on `http://localhost:8080`. The web dev server (`apps/web`) runs separately on `:5173` and proxies `/api` to `:8080`.
+The development stack publishes on `http://localhost:8080`. The web dev server (`apps/web`) runs separately on `:5173`
+and proxies `/api` to `:8080`.
 
 Enable the repository's Git hooks once after cloning:
 
@@ -65,6 +69,9 @@ cd apps/web
 npm run build   # tsc typecheck + vite build
 npm run dev     # vite dev server, proxies /api to :8080
 ```
+
+When developing through the bundled server instead of Vite, run `./velora web-build`. It builds in a disposable Node
+container and updates the web assets mounted at `/app/web`; refresh the browser without rebuilding the Velora image.
 
 ## Branching
 

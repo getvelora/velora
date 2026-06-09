@@ -23,7 +23,7 @@
 - [ ] Touches HTTP API surface
 - [ ] Touches database schema or migrations (Goose; must work on SQLite and Postgres)
 - [ ] Touches `/config` durability or other persistence
-- [ ] Touches the `./velora` helper or `docker-compose.yml`
+- [ ] Touches `./velora`, `compose.dev.yml`, or the public `compose.yml`
 - [ ] User-visible UI change (screenshots / clips below)
 
 ## Screenshots / clips

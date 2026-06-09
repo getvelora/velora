@@ -74,6 +74,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: docker/setup-buildx-action@v3
+      - name: Validate Compose files
+        run: |
+          docker compose -f compose.yml config
+          docker compose -f compose.dev.yml config
       - name: Build image (smoke test, no push)
         uses: docker/build-push-action@v7
         with:

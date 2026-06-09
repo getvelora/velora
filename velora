@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEV_COMPOSE_FILE="$ROOT_DIR/compose.dev.yml"
 GOLANGCI_LINT_VERSION="v2.12.2"
 
 usage() {
@@ -14,12 +15,13 @@ Commands:
   clean                Stop the local environment and remove compose volumes
   status               Show local environment status
   logs                 Follow local environment logs
+  web-build             Build web assets without rebuilding the application image
   lint                  Run the pinned Go linter
 USAGE
 }
 
 run_compose() {
-  (cd "$ROOT_DIR" && docker compose "$@")
+  (cd "$ROOT_DIR" && docker compose --project-name velora --file "$DEV_COMPOSE_FILE" "$@")
 }
 
 create_env() {
@@ -44,6 +46,7 @@ create_env() {
     "$ROOT_DIR/${VELORA_HOST_MEDIA_DIR:-./dev/media}" \
     "$ROOT_DIR/${VELORA_HOST_CACHE_DIR:-./dev/cache}" \
     "$ROOT_DIR/${VELORA_HOST_CONFIG_DIR:-./dev/config}"
+  web_build false
   run_compose "${compose_args[@]}" up -d --build --remove-orphans
 }
 
@@ -78,6 +81,21 @@ logs_env() {
   run_compose logs -f
 }
 
+web_build() {
+  local refresh_service="${1:-true}"
+
+  export VELORA_HOST_UID
+  export VELORA_HOST_GID
+  VELORA_HOST_UID="$(id -u)"
+  VELORA_HOST_GID="$(id -g)"
+  run_compose run --rm --no-deps web-build
+
+  if [[ "$refresh_service" == "true" ]] &&
+    [[ "$(run_compose ps --status running --services velora)" == "velora" ]]; then
+    run_compose up -d --no-build --no-deps velora
+  fi
+}
+
 lint_go() {
   docker run --rm \
     -e GOCACHE=/app/.cache/go-build \
@@ -107,6 +125,9 @@ main() {
       ;;
     logs)
       logs_env
+      ;;
+    web-build)
+      web_build
       ;;
     lint)
       lint_go
