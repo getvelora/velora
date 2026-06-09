@@ -30,4 +30,3 @@ func TestEnsureRuntimeDirectoriesCreatesMissingPaths(t *testing.T) {
 		}
 	}
 }
-
