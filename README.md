@@ -144,6 +144,10 @@ GitHub Actions runs server formatting/build/vet/race tests, pinned Go linting, t
 on every push and PR to `develop`. Contributors can enable the committed pre-commit lint hook with
 `git config core.hooksPath .githooks`. See `.github/workflows/ci.yml`.
 
+Dependabot runs weekly for Go, npm, GitHub Actions, and Docker dependencies. Patch updates are grouped and
+automatically squash-merged after all required checks pass. GitHub then closes the PR and deletes its branch. Minor
+and major updates intentionally remain open for manual review; failed patch updates also remain open.
+
 ## Status
 
 Implemented:
