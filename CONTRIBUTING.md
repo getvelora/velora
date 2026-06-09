@@ -99,8 +99,17 @@ A good PR:
 The committed pre-commit hook runs `./velora lint`. CI also runs the Go build/vet/test matrix, lint, web build, and
 Docker smoke test on every PR. Hooks can be bypassed locally, so PRs still need a green CI before merge.
 
-Dependabot groups patch updates by ecosystem and squash-merges them automatically after all required checks pass.
-Minor and major dependency updates remain open for manual review.
+### Dependabot updates
+
+Dependabot checks Go modules, npm packages, GitHub Actions, and Docker images weekly.
+
+- Patch updates are grouped by ecosystem. After all required CI and CodeQL checks pass, GitHub squash-merges the PR,
+  closes it, and deletes its branch automatically.
+- Minor and major updates are not auto-merged. Their PRs remain open until a maintainer reviews and merges them,
+  closes them, or tells Dependabot to ignore that update.
+- A failed patch update remains open so its failure can be investigated; automation does not merge or close it.
+- Closing a Dependabot PR does not necessarily suppress future versions. Use the relevant `@dependabot ignore`
+  command in the PR when an update or version line should remain suppressed.
 
 ## License
 
