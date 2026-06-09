@@ -161,8 +161,8 @@ Implemented:
 - SPA deep-link routing for the served web client.
 - GitHub Actions CI on push + PR.
 
-Next planned milestone:
+## Roadmap
 
-- Scan files from `/media` into a `media_files` table.
-- Expand `/api/libraries` with GET-by-id, PUT, DELETE.
-- Begin the scanner pipeline (ffprobe-driven metadata).
+The next milestone is incremental media scanning and ffprobe-based file inspection. See [`ROADMAP.md`](ROADMAP.md) for
+the planned path through metadata, playback, hardware-accelerated transcoding, 4K/HDR support, household profiles,
+portable deployment, and instance-to-instance library sharing.
