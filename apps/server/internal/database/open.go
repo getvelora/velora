@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "modernc.org/sqlite"
+	_ "github.com/jackc/pgx/v5/stdlib" // Register the pgx database/sql driver.
+	_ "modernc.org/sqlite"             // Register the SQLite database/sql driver.
 )
 
 func Open(config Config) (*sql.DB, error) {
@@ -34,4 +34,3 @@ func Open(config Config) (*sql.DB, error) {
 		return nil, fmt.Errorf("unsupported database driver: %s", config.Driver)
 	}
 }
-
