@@ -36,7 +36,7 @@ The `./velora` wrapper covers the common lifecycle commands:
 ./velora clean                 # stop containers, drop compose-managed volumes (SQLite db is lost)
 ./velora status                # docker compose ps
 ./velora logs                  # follow container logs
-./velora commit                # commit staged changes with a generated Conventional Commit message
+./velora lint                  # run the pinned Go linter
 ```
 
 For step-by-step setup, deeper config patterns, and troubleshooting, see [`docs/`](docs/).
@@ -140,8 +140,9 @@ velora                      Convenience CLI around docker compose
 
 ## CI
 
-GitHub Actions runs the server (Go build, vet, race tests) and web (tsc + vite build) on every push and PR to
-`develop`. See `.github/workflows/ci.yml`. The server job pins to the Go version in `apps/server/go.mod`.
+GitHub Actions runs server formatting/build/vet/race tests, pinned Go linting, the web build, and a Docker smoke test
+on every push and PR to `develop`. Contributors can enable the committed pre-commit lint hook with
+`git config core.hooksPath .githooks`. See `.github/workflows/ci.yml`.
 
 ## Status
 
