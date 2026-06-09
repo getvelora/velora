@@ -111,6 +111,16 @@ Dependabot checks Go modules, npm packages, GitHub Actions, and Docker images we
 - Closing a Dependabot PR does not necessarily suppress future versions. Use the relevant `@dependabot ignore`
   command in the PR when an update or version line should remain suppressed.
 
+When multiple dependency PRs modify the same manifest or lockfile, handle them sequentially instead of resolving every
+branch against the same stale base:
+
+1. Merge the update that subsumes or is required by another update first.
+2. Close any PR made redundant by that merge.
+3. Refresh the next distinct PR against the updated `develop` branch and regenerate its lockfile.
+4. Confirm the refreshed diff contains only the intended dependency changes and that all required checks pass.
+
+This avoids repeatedly resolving conflicts that will be recreated as soon as another overlapping dependency PR merges.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the [GNU AGPL v3.0](LICENSE).

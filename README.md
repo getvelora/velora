@@ -146,7 +146,9 @@ on every push and PR to `develop`. Contributors can enable the committed pre-com
 
 Dependabot runs weekly for Go, npm, GitHub Actions, and Docker dependencies. Patch updates are grouped and
 automatically squash-merged after all required checks pass. GitHub then closes the PR and deletes its branch. Minor
-and major updates intentionally remain open for manual review; failed patch updates also remain open.
+and major updates intentionally remain open for manual review; failed patch updates also remain open. When dependency
+PRs overlap in the same manifest or lockfile, merge them sequentially: close superseded PRs, then refresh the next
+distinct update against the latest `develop`.
 
 ## Status
 
