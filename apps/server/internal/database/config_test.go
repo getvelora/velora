@@ -31,4 +31,3 @@ func TestConfigUsesExplicitPostgresSettings(t *testing.T) {
 		t.Fatalf("unexpected database URL: %q", config.URL)
 	}
 }
-
