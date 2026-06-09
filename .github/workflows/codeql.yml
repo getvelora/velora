@@ -30,7 +30,7 @@ jobs:
           - language: javascript-typescript
             build-mode: none
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Go (for Go autobuild)
         if: matrix.language == 'go'
