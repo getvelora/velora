@@ -99,6 +99,9 @@ A good PR:
 The committed pre-commit hook runs `./velora lint`. CI also runs the Go build/vet/test matrix, lint, web build, and
 Docker smoke test on every PR. Hooks can be bypassed locally, so PRs still need a green CI before merge.
 
+Dependabot groups patch updates by ecosystem and squash-merges them automatically after all required checks pass.
+Minor and major dependency updates remain open for manual review.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the [GNU AGPL v3.0](LICENSE).

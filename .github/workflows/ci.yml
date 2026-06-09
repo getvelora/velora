@@ -91,7 +91,7 @@ jobs:
             -v "$(mktemp -d):/cache" \
             -v "$(mktemp -d):/media" \
             velora:ci
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -fsS http://localhost:8080/api/health >/dev/null; then
               echo "health ok"
               docker stop velora-ci
