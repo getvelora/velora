@@ -16,72 +16,23 @@ Velora is a single container that bundles a Go HTTP server and a React/Vite web 
 - `apps/web` — React/Vite client
 - `dev/` — local runtime folders mounted into the container (`dev/config`, `dev/cache`, `dev/media`)
 - `docs/` — user-facing docs (setup, configuration, API, troubleshooting)
-- `AGENTS.md` — the canonical engineering guide. Read it before writing code.
 
 ## Getting the project running
 
-The repo includes a contributor-only `./velora` helper around `compose.dev.yml`. This stack is deliberately different
-from the public `compose.yml`, which pulls the released GHCR image. Development builds the `server-runtime` Docker
-target containing only Go and FFmpeg; web assets are built separately and bind-mounted into the running server.
+The repository includes a contributor-only `./velora` helper around `compose.dev.yml`. Start the default SQLite stack:
 
 ```bash
-cp .env.development.example .env # optional local overrides
-./velora create            # build the server image and start SQLite
-./velora create --postgres # build and start with local Postgres
-./velora logs              # follow container logs
-./velora status            # show container status
-./velora destroy           # stop containers, keep volumes
-./velora clean             # stop containers and remove compose volumes
-./velora web-build         # rebuild mounted web assets without rebuilding the app image
-./velora lint              # run the pinned Go linter
+./velora create
 ```
 
-The development stack publishes on `http://localhost:8080`. The web dev server (`apps/web`) runs separately on `:5173`
-and proxies `/api` to `:8080`.
-
-Enable the repository's Git hooks once after cloning:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-## Running the tests
-
-### Server (Go)
-
-The repo carries checked-in build/mod caches under `apps/server/.cache` so CI and local runs don't rebuild from scratch. Point both vars at them:
-
-```bash
-cd apps/server
-GOCACHE=$PWD/.cache/go-build GOMODCACHE=$PWD/.cache/go-mod go test ./...
-```
-
-To run a single test:
-
-```bash
-GOCACHE=$PWD/.cache/go-build GOMODCACHE=$PWD/.cache/go-mod \
-  go test ./internal/health -run TestHandlerReturnsOKWhenDatabaseCheckPasses
-```
-
-### Web (Vite + TypeScript)
-
-```bash
-cd apps/web
-npm run build   # tsc typecheck + vite build
-npm run dev     # vite dev server, proxies /api to :8080
-```
-
-When developing through the bundled server instead of Vite, run `./velora web-build`. It reuses containerized npm
-dependencies, rebuilds the assets mounted at `/app/web`, and requires only a browser refresh. It does not rebuild or
-restart the Go server. `./velora create` builds web assets only when `apps/web/dist` does not exist.
+See the [Development Guide](docs/development.md) for architecture, optional Postgres setup, local commands, tests,
+web development, linting, Git hooks, and CI coverage.
 
 ## Branching
 
-The active branch is `develop`. `main` only exists at release time. Open PRs against `develop`. See [AGENTS.md](AGENTS.md) for the full rationale.
+The active branch is `develop`. `main` only exists at release time. Open pull requests against `develop`.
 
 ## Coding style
-
-The full style guide lives in [AGENTS.md](AGENTS.md). The short version:
 
 - **Go:** `gofmt`, small focused packages, handlers take dependencies as injected values (see `health.NewHandler` for the pattern). Tests live beside the package under test and are named by behavior (`TestConfigDefaultsToSQLiteInConfigDirectory`).
 - **TypeScript/React:** functional components, explicit types for API responses, clear names over abbreviations.
