@@ -8,7 +8,7 @@ This Code of Conduct applies within all project spaces — issues, discussions, 
 
 ## Reporting
 
-Instances of unacceptable behavior may be reported to the maintainers at **dravenlon@gmail.com**. All complaints will be reviewed and investigated promptly and fairly. Reporter identity will be kept confidential.
+Instances of unacceptable behavior may be reported to the maintainers at **michael@michaeldelle.com**. All complaints will be reviewed and investigated promptly and fairly. Reporter identity will be kept confidential.
 
 ## Enforcement
 
