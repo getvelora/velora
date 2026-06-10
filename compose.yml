@@ -4,6 +4,10 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    # To use an external Postgres database, uncomment and update:
+    # environment:
+    #   VELORA_DATABASE_DRIVER: postgres
+    #   VELORA_DATABASE_URL: postgres://user:password@postgres-host:5432/velora?sslmode=require
     volumes:
       - velora-config:/config
       - velora-cache:/cache

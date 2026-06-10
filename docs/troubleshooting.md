@@ -57,7 +57,9 @@ docker compose exec velora sh -c 'touch /config/.write-test && rm /config/.write
 ```
 
 With external Postgres, confirm `VELORA_DATABASE_URL` is reachable from inside the container. The hostname must resolve
-on the container network, not only on the host.
+on the container network, not only on the host. Do not use `localhost` unless Postgres is running in the same
+container. Also verify the database exists, credentials are correct, the server accepts the Docker host's connection,
+and `sslmode` matches the provider's requirements.
 
 ## Media Is Not Visible
 

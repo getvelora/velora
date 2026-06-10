@@ -52,6 +52,10 @@ docker run -d \
 Replace `/path/to/your/media` with the real host path. See [`docs/getting-started.md`](docs/getting-started.md) for the
 full setup.
 
+SQLite is the zero-configuration default. To use an existing Postgres server, configure the same image with
+`VELORA_DATABASE_DRIVER=postgres` and a complete `VELORA_DATABASE_URL`; no separate Velora image or bundled database
+is required. See [External Postgres](docs/configuration.md#external-postgres).
+
 ## HTTP API
 
 ### `GET /api/health`

@@ -76,16 +76,46 @@ SQLite is the default and recommended database for a single-host installation. I
 
 ### External Postgres
 
-To use an existing Postgres server, add:
+The published Velora image includes the Postgres driver and Postgres-specific Goose migrations. To use an existing
+database, add these variables to the `velora` service:
 
 ```yaml
-environment:
-  VELORA_DATABASE_DRIVER: postgres
-  VELORA_DATABASE_URL: postgres://user:password@postgres-host:5432/velora?sslmode=disable
+services:
+  velora:
+    image: ghcr.io/getvelora/velora:latest
+    environment:
+      VELORA_DATABASE_DRIVER: postgres
+      VELORA_DATABASE_URL: postgres://user:password@postgres-host:5432/velora?sslmode=require
+```
+
+The database and credentials must already exist. Velora creates and migrates its tables at startup, but it does not
+provision the Postgres server or database.
+
+The hostname in `VELORA_DATABASE_URL` must be reachable from inside the Velora container:
+
+- For a database on another machine, use its LAN/DNS hostname or IP and allow connections from the Docker host.
+- For a database in another Compose project, attach both services to a shared Docker network and use the database
+  service name or network alias.
+- `localhost` refers to the Velora container itself and is usually incorrect.
+- `host.docker.internal` commonly reaches a database running directly on Docker Desktop's host. Linux engines may
+  require an explicit host-gateway mapping.
+
+Use the TLS mode required by the database provider. `sslmode=require` is a reasonable remote starting point; use the
+provider's CA/verification settings where available. Use `sslmode=disable` only for a trusted local network or local
+development database that does not support TLS.
+
+Keep the `/config` mount even when Postgres stores the database. Velora may use `/config` for other durable application
+state.
+
+Verify the connection after startup:
+
+```bash
+curl http://localhost:8080/api/health
+# {"status":"ok","database":"ok","databaseDriver":"postgres"}
 ```
 
 Velora does not require Postgres for normal installation. The bundled Postgres profile in `compose.dev.yml` exists
-only for contributor testing.
+only for contributor testing and is not part of the public deployment example.
 
 ## Upgrades
 
