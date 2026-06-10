@@ -8,15 +8,16 @@ RUN npm run build
 FROM golang:1.26-alpine AS server
 WORKDIR /src/apps/server
 COPY apps/server/go.mod apps/server/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY apps/server ./
-RUN CGO_ENABLED=0 go build -o /out/velora ./cmd/velora
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 go build -o /out/velora ./cmd/velora
 
-FROM alpine:3.23
+FROM alpine:3.23 AS server-runtime
 RUN apk add --no-cache ffmpeg ca-certificates
 WORKDIR /app
 COPY --from=server /out/velora /app/velora
-COPY --from=web /src/apps/web/dist /app/web
 EXPOSE 8080
 ENV PORT=8080
 ENV WEB_DIST_DIR=/app/web
@@ -26,3 +27,6 @@ ENV VELORA_MEDIA_DIR=/media
 ENV VELORA_DATABASE_DRIVER=sqlite
 ENV VELORA_DATABASE_URL=/config/velora.db
 CMD ["/app/velora"]
+
+FROM server-runtime AS release
+COPY --from=web /src/apps/web/dist /app/web
