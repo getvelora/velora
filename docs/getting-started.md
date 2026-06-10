@@ -36,6 +36,9 @@ docker compose pull
 docker compose up -d
 ```
 
+SQLite is enabled by default. If you already operate Postgres, see
+[External Postgres](configuration.md#external-postgres) before starting the container.
+
 ## Docker CLI
 
 The equivalent command without Compose is:
@@ -62,6 +65,8 @@ curl http://localhost:8080/api/health
 ```
 
 Then open <http://localhost:8080>.
+
+When Postgres is configured, the same response reports `"databaseDriver":"postgres"`.
 
 ## Create And Scan A Library
 

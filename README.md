@@ -52,6 +52,10 @@ docker run -d \
 Replace `/path/to/your/media` with the real host path. See [`docs/getting-started.md`](docs/getting-started.md) for the
 full setup.
 
+SQLite is the zero-configuration default. To use an existing Postgres server, configure the same image with
+`VELORA_DATABASE_DRIVER=postgres` and a complete `VELORA_DATABASE_URL`; no separate Velora image or bundled database
+is required. See [External Postgres](docs/configuration.md#external-postgres).
+
 ## HTTP API
 
 ### `GET /api/health`
@@ -110,7 +114,7 @@ This section is for contributors working from a repository clone. It is not the 
 
 ```bash
 cp .env.development.example .env   # optional local overrides
-./velora create                    # build source and start the development stack
+./velora create                    # build and start the server-only development image
 ./velora web-build                 # rebuild mounted web assets without rebuilding the app image
 ```
 
@@ -138,10 +142,10 @@ For a production-shape build without installing Node locally:
 ./velora web-build
 ```
 
-This runs `npm run build` in a disposable Node container. The generated `apps/web/dist` directory is mounted into the
-running Velora container, so refreshing the browser serves the new assets without rebuilding the app image. Compose
-recreates the server only when needed to apply a changed mount configuration. `./velora create` runs this build once
-before starting the stack so the bind mount is never empty.
+This runs the dependency check and `npm run build` in a disposable Node container. The generated `apps/web/dist`
+directory is mounted into the running Velora container, so refreshing the browser serves the new assets without
+rebuilding or restarting the server. `./velora create` builds these assets only when `dist` is missing, then builds
+the `server-runtime` target without running the release Dockerfile's web stage.
 
 ## Configuration
 
@@ -181,7 +185,7 @@ dev/                        Local bind-mount sources (config, cache, media)
 .github/workflows/          CI pipeline
 compose.yml                 Public GHCR deployment example
 compose.dev.yml             Contributor development stack
-Dockerfile                  Multi-stage build (web + server → alpine + ffmpeg)
+Dockerfile                  Release image + server-only development target
 velora                      Contributor CLI around compose.dev.yml
 ```
 

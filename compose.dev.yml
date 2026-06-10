@@ -3,20 +3,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: server-runtime
     environment:
       PORT: "8080"
       WEB_DIST_DIR: /app/web
-      VELORA_CONFIG_DIR: ${VELORA_CONFIG_DIR:-/config}
-      VELORA_CACHE_DIR: ${VELORA_CACHE_DIR:-/cache}
-      VELORA_MEDIA_DIR: ${VELORA_MEDIA_DIR:-/media}
+      VELORA_CONFIG_DIR: /config
+      VELORA_CACHE_DIR: /cache
+      VELORA_MEDIA_DIR: /media
       VELORA_DATABASE_DRIVER: ${VELORA_DATABASE_DRIVER:-sqlite}
       VELORA_DATABASE_URL: ${VELORA_DATABASE_URL:-/config/velora.db}
     ports:
       - "${VELORA_HTTP_PORT:-8080}:8080"
     volumes:
-      - ${VELORA_HOST_MEDIA_DIR:-./dev/media}:${VELORA_MEDIA_DIR:-/media}
-      - ${VELORA_HOST_CACHE_DIR:-./dev/cache}:${VELORA_CACHE_DIR:-/cache}
-      - ${VELORA_HOST_CONFIG_DIR:-./dev/config}:${VELORA_CONFIG_DIR:-/config}
+      - ${VELORA_HOST_MEDIA_DIR:-./dev/media}:/media
+      - ${VELORA_HOST_CACHE_DIR:-./dev/cache}:/cache
+      - ${VELORA_HOST_CONFIG_DIR:-./dev/config}:/config
       - ./apps/web/dist:/app/web:ro
 
   web-build:
@@ -35,7 +36,7 @@ services:
       - sh
       - -c
       - >-
-        npm ci &&
+        npm install --prefer-offline --no-audit --no-fund &&
         npm run build &&
         chown -R "$${VELORA_HOST_UID}:$${VELORA_HOST_GID}" /workspace/dist
 
@@ -47,8 +48,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-velora}
       POSTGRES_USER: ${POSTGRES_USER:-velora}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-velora}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-18-data:/var/lib/postgresql/data
     healthcheck:

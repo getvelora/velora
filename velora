@@ -10,7 +10,7 @@ usage() {
 Usage: ./velora <command> [options]
 
 Commands:
-  create [--postgres]  Build and start the local environment
+  create [--postgres]  Build and start the server development environment
   destroy              Stop the local environment and preserve volumes
   clean                Stop the local environment and remove compose volumes
   status               Show local environment status
@@ -46,13 +46,13 @@ create_env() {
     "$ROOT_DIR/${VELORA_HOST_MEDIA_DIR:-./dev/media}" \
     "$ROOT_DIR/${VELORA_HOST_CACHE_DIR:-./dev/cache}" \
     "$ROOT_DIR/${VELORA_HOST_CONFIG_DIR:-./dev/config}"
-  web_build false
+  ensure_web_assets
   run_compose "${compose_args[@]}" up -d --build --remove-orphans
 }
 
 use_local_postgres() {
   export VELORA_DATABASE_DRIVER=postgres
-  export VELORA_DATABASE_URL="postgres://${POSTGRES_USER:-velora}:${POSTGRES_PASSWORD:-velora}@${POSTGRES_HOST:-postgres}:5432/${POSTGRES_DB:-velora}?sslmode=disable"
+  export VELORA_DATABASE_URL="postgres://${POSTGRES_USER:-velora}:${POSTGRES_PASSWORD:-velora}@postgres:5432/${POSTGRES_DB:-velora}?sslmode=disable"
 }
 
 load_env_file() {
@@ -66,11 +66,11 @@ load_env_file() {
 }
 
 destroy_env() {
-  run_compose down --remove-orphans
+  run_compose --profile postgres down --remove-orphans
 }
 
 clean_env() {
-  run_compose down --volumes --remove-orphans
+  run_compose --profile postgres down --volumes --remove-orphans
 }
 
 status_env() {
@@ -81,19 +81,18 @@ logs_env() {
   run_compose logs -f
 }
 
-web_build() {
-  local refresh_service="${1:-true}"
+ensure_web_assets() {
+  if [[ ! -f "$ROOT_DIR/apps/web/dist/index.html" ]]; then
+    web_build
+  fi
+}
 
+web_build() {
   export VELORA_HOST_UID
   export VELORA_HOST_GID
   VELORA_HOST_UID="$(id -u)"
   VELORA_HOST_GID="$(id -g)"
   run_compose run --rm --no-deps web-build
-
-  if [[ "$refresh_service" == "true" ]] &&
-    [[ "$(run_compose ps --status running --services velora)" == "velora" ]]; then
-    run_compose up -d --no-build --no-deps velora
-  fi
 }
 
 lint_go() {
