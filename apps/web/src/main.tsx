@@ -101,8 +101,8 @@ function App() {
           <div>
             <h2>No media scanned yet</h2>
             <p>
-              Mount sample files into <code>dev/media</code>. The next milestone will discover
-              them with ffprobe and show playable items here.
+              Mount sample files into <code>dev/media</code>, register a library, and scan it
+              through the API. Media browsing will arrive with movie and series grouping.
             </p>
           </div>
         </section>

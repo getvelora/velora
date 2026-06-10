@@ -86,6 +86,9 @@ Create a new library.
 
 Synchronously discovers supported video files under a library and atomically reconciles its persisted inventory.
 Symlinks are not followed. If traversal fails, the previous inventory remains unchanged.
+New, changed, restored, previously failed, and previously unprobed files are inspected with ffprobe. A damaged or
+unsupported file remains in inventory with an inspection error while the rest of the scan completes. If ffprobe
+cannot be started, the scan fails without changing inventory.
 
 **Response (200)**
 
@@ -98,6 +101,8 @@ Symlinks are not followed. If traversal fails, the previous inventory remains un
   "unchanged": 1,
   "restored": 0,
   "markedMissing": 0,
+  "probed": 1,
+  "probeFailed": 0,
   "ignored": 3,
   "startedAt": "2026-06-09T12:00:00Z",
   "completedAt": "2026-06-09T12:00:00.125Z"
@@ -131,12 +136,52 @@ Returns all persisted files for a library, ordered by relative path. Missing fil
     "status": "available",
     "firstSeenAt": "2026-06-09T12:00:00Z",
     "lastSeenAt": "2026-06-09T12:05:00Z",
-    "missingAt": null
+    "missingAt": null,
+    "inspection": {
+      "status": "ready",
+      "error": null,
+      "probedAt": "2026-06-09T12:00:00Z",
+      "format": {
+        "name": "matroska,webm",
+        "longName": "Matroska / WebM",
+        "durationMs": 7265123,
+        "bitRate": 18432000
+      },
+      "streams": [
+        {
+          "index": 0,
+          "type": "video",
+          "codecName": "hevc",
+          "codecLongName": "H.265 / HEVC",
+          "profile": "Main 10",
+          "level": 153,
+          "language": "eng",
+          "title": "Main video",
+          "default": true,
+          "forced": false,
+          "width": 3840,
+          "height": 2160,
+          "pixelFormat": "yuv420p10le",
+          "bitDepth": 10,
+          "frameRate": "24000/1001",
+          "colorRange": "tv",
+          "colorSpace": "bt2020nc",
+          "colorTransfer": "smpte2084",
+          "colorPrimaries": "bt2020",
+          "sampleRate": 0,
+          "channels": 0,
+          "channelLayout": ""
+        }
+      ]
+    }
   }
 ]
 ```
 
 Returns `404` when the library does not exist and `500` when inventory cannot be loaded.
+Inspection status is `unprobed`, `ready`, or `error`. Unprobed and failed inspections return `format: null` and an
+empty `streams` array. Failed inspections include a sanitized, length-limited `error`. Only video, audio, and subtitle
+streams are returned; attachment and data streams are ignored.
 
 ## Method-not-allowed semantics
 

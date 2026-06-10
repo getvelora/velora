@@ -26,13 +26,13 @@ Delivered foundation:
 - Persist relative paths, sizes, modification times, and available/missing state.
 - Reconcile scans incrementally, preserve inventory after failed walks, and restore missing files without duplicates.
 - Trigger synchronous scans and inspect the persisted file inventory through the API.
+- Extract normalized container, video, audio, subtitle, codec, and HDR-related details with ffprobe.
 
 Next:
 
 - Complete library create, read, update, and delete workflows.
 - Move long scans to resumable background jobs with durable progress and cancellation.
 - Detect moved files without losing file identity.
-- Extract stream and container details with ffprobe.
 - Group files into movies, series, seasons, and episodes.
 - Detect duplicates and surface unmatched or malformed files.
 - Show scan progress, errors, history, and manual rescan controls.

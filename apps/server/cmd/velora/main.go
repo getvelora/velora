@@ -49,11 +49,13 @@ func main() {
 
 	libraryStore := libraries.NewRepository(db, databaseConfig.Driver)
 	mediaFileStore := mediafiles.NewRepository(db, databaseConfig.Driver)
+	ffprober := mediafiles.NewFFProber("ffprobe")
 	mediaFileHandler := mediafiles.NewHandler(
 		libraryStore,
 		mediaFileStore,
 		runtimePaths.Media,
 		mediafiles.Discover,
+		ffprober.Probe,
 	)
 
 	mux := http.NewServeMux()

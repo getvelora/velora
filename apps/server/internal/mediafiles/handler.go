@@ -6,7 +6,9 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +31,12 @@ type Store interface {
 }
 
 type DiscoverFunc func(ctx context.Context, root string) (DiscoveryResult, error)
+type ProbeFunc func(ctx context.Context, path string) (ProbeResult, error)
+
+const (
+	probeTimeout      = 60 * time.Second
+	maxProbeErrorSize = 512
+)
 
 type ScanResponse struct {
 	LibraryID int64 `json:"libraryId"`
@@ -43,6 +51,7 @@ type Handler struct {
 	files     Store
 	mediaRoot string
 	discover  DiscoverFunc
+	probe     ProbeFunc
 
 	mu      sync.Mutex
 	running map[int64]struct{}
@@ -53,12 +62,14 @@ func NewHandler(
 	fileStore Store,
 	mediaRoot string,
 	discover DiscoverFunc,
+	probe ProbeFunc,
 ) *Handler {
 	return &Handler{
 		libraries: libraryStore,
 		files:     fileStore,
 		mediaRoot: mediaRoot,
 		discover:  discover,
+		probe:     probe,
 		running:   map[int64]struct{}{},
 	}
 }
@@ -125,6 +136,17 @@ func (h *Handler) handleScan(w http.ResponseWriter, r *http.Request, libraryID i
 		writeMediaError(w, http.StatusInternalServerError, "failed to scan library")
 		return
 	}
+	existing, err := h.files.List(r.Context(), libraryID)
+	if err != nil {
+		log.Printf("media files: load inventory for library %d failed: %v", libraryID, err)
+		writeMediaError(w, http.StatusInternalServerError, "failed to load media files")
+		return
+	}
+	if err := h.inspectFiles(r.Context(), library.Path, existing, discovery.Files); err != nil {
+		log.Printf("media files: inspect library %d failed: %v", libraryID, err)
+		writeMediaError(w, http.StatusInternalServerError, "failed to inspect media files")
+		return
+	}
 	summary, err := h.files.Reconcile(
 		r.Context(),
 		libraryID,
@@ -144,6 +166,67 @@ func (h *Handler) handleScan(w http.ResponseWriter, r *http.Request, libraryID i
 		StartedAt:        startedAt,
 		CompletedAt:      time.Now().UTC(),
 	})
+}
+
+func (h *Handler) inspectFiles(
+	ctx context.Context,
+	libraryPath string,
+	existing []File,
+	discovered []DiscoveredFile,
+) error {
+	currentByPath := make(map[string]File, len(existing))
+	for _, file := range existing {
+		currentByPath[file.Path] = file
+	}
+
+	for index := range discovered {
+		item := &discovered[index]
+		current, found := currentByPath[item.Path]
+		if !needsProbe(*item, current, found) {
+			continue
+		}
+
+		absolutePath := filepath.Join(libraryPath, filepath.FromSlash(item.Path))
+		probeCtx, cancel := context.WithTimeout(ctx, probeTimeout)
+		result, err := h.probe(probeCtx, absolutePath)
+		cancel()
+		if err == nil {
+			item.Inspection = InspectionResult{Attempted: true, Result: result}
+			continue
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if errors.Is(err, ErrProbeRuntime) {
+			return err
+		}
+		item.Inspection = InspectionResult{
+			Attempted: true,
+			Error:     sanitizeProbeError(err, absolutePath, item.Path),
+		}
+	}
+	return nil
+}
+
+func needsProbe(discovered DiscoveredFile, current File, found bool) bool {
+	if !found || current.Status == StatusMissing {
+		return true
+	}
+	if current.Size != discovered.Size || !current.ModifiedAt.Equal(discovered.ModifiedAt) {
+		return true
+	}
+	return current.Inspection.Status == InspectionStatusUnprobed ||
+		current.Inspection.Status == InspectionStatusError ||
+		current.Inspection.Status == ""
+}
+
+func sanitizeProbeError(err error, absolutePath, relativePath string) string {
+	message := strings.ReplaceAll(err.Error(), absolutePath, relativePath)
+	message = strings.Join(strings.Fields(message), " ")
+	if len(message) > maxProbeErrorSize {
+		message = message[:maxProbeErrorSize]
+	}
+	return message
 }
 
 func (h *Handler) getLibrary(
