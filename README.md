@@ -4,7 +4,7 @@ Velora is a local-first media server with a bundled React web client. The Go ser
 as a single container; Apple-device browser playback is the first client target.
 
 The project is pre-release. SQLite is the default, Postgres is opt-in, and the server currently supports health
-checks, library registration, and synchronous incremental media scanning.
+checks, library registration, synchronous incremental media scanning, and ffprobe-based media inspection.
 
 ## Goals
 
@@ -59,7 +59,9 @@ Implemented:
 - Embedded per-dialect migrations applied at startup.
 - Health and library registration APIs.
 - Incremental media discovery with persisted missing and restored states.
+- Typed container, video, audio, subtitle, codec, and HDR-related inspection through ffprobe.
 - SPA deep-link routing for the bundled web client.
 
-The next milestone is ffprobe-based stream and container inspection. See [ROADMAP.md](ROADMAP.md) for the planned path
-through metadata, playback, transcoding, household profiles, portable deployment, and library sharing.
+The next milestone is grouping inspected files into movies, series, seasons, and episodes. See
+[ROADMAP.md](ROADMAP.md) for the planned path through metadata, playback, transcoding, household profiles, portable
+deployment, and library sharing.
