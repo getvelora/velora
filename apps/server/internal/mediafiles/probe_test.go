@@ -115,6 +115,34 @@ func TestParseProbeOutputAllowsMissingOptionalFields(t *testing.T) {
 	}
 }
 
+func TestParseProbeOutputRejectsStreamIntegersOutsideInt32(t *testing.T) {
+	t.Parallel()
+
+	got, err := ParseProbeOutput([]byte(`{
+		"streams": [
+			{
+				"index": 0,
+				"codec_type": "video",
+				"bits_per_raw_sample": "2147483648"
+			},
+			{
+				"index": 1,
+				"codec_type": "audio",
+				"sample_rate": "2147483648"
+			}
+		]
+	}`))
+	if err != nil {
+		t.Fatalf("ParseProbeOutput: %v", err)
+	}
+	if got.Streams[0].BitDepth != 0 {
+		t.Fatalf("expected overflowing bit depth to be zero, got %d", got.Streams[0].BitDepth)
+	}
+	if got.Streams[1].SampleRate != 0 {
+		t.Fatalf("expected overflowing sample rate to be zero, got %d", got.Streams[1].SampleRate)
+	}
+}
+
 func TestParseProbeOutputRejectsMalformedJSON(t *testing.T) {
 	t.Parallel()
 

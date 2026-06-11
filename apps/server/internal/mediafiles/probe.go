@@ -124,13 +124,13 @@ func ParseProbeOutput(output []byte) (ProbeResult, error) {
 			Width:          item.Width,
 			Height:         item.Height,
 			PixelFormat:    item.PixelFormat,
-			BitDepth:       int(parseInt64(item.BitDepth)),
+			BitDepth:       parseInt32(item.BitDepth),
 			FrameRate:      item.FrameRate,
 			ColorRange:     item.ColorRange,
 			ColorSpace:     item.ColorSpace,
 			ColorTransfer:  item.ColorTransfer,
 			ColorPrimaries: item.ColorPrimaries,
-			SampleRate:     int(parseInt64(item.SampleRate)),
+			SampleRate:     parseInt32(item.SampleRate),
 			Channels:       item.Channels,
 			ChannelLayout:  item.ChannelLayout,
 		})
@@ -152,4 +152,12 @@ func parseInt64(value string) int64 {
 		return 0
 	}
 	return parsed
+}
+
+func parseInt32(value string) int {
+	parsed, err := strconv.ParseInt(value, 10, 32)
+	if err != nil || parsed < 0 {
+		return 0
+	}
+	return int(parsed)
 }
