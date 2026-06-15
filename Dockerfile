@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 go build -o /out/velora ./cmd/velora
 
-FROM alpine:3.23 AS server-runtime
+FROM alpine:3.24 AS server-runtime
 RUN apk add --no-cache ffmpeg ca-certificates
 WORKDIR /app
 COPY --from=server /out/velora /app/velora
