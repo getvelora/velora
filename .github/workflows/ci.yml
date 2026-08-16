@@ -22,7 +22,7 @@ jobs:
         working-directory: apps/server
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/server/go.mod
           cache-dependency-path: apps/server/go.sum
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: apps/server/go.mod
           cache-dependency-path: apps/server/go.sum
