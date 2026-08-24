@@ -5,7 +5,7 @@ RUN npm ci
 COPY apps/web ./
 RUN npm run build
 
-FROM golang:1.26-alpine AS server
+FROM golang:1.27-alpine AS server
 WORKDIR /src/apps/server
 COPY apps/server/go.mod apps/server/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
